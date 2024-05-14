@@ -36,3 +36,12 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# venv
+/venv/
+*.json
+*.csv
+
+/temp/
+/systems/
+/execution/
