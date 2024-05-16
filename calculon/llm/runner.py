@@ -61,7 +61,9 @@ class Runner(calculon.CommandLine):
     if args.stats == '-':
       model.display_stats()
     elif calculon.is_json_extension(args.stats):
-      calculon.write_json_file(model.get_stats_json(args.layers), args.stats)
+      # calculon.write_json_file(model.get_stats_json(args.layers), args.stats)
+      model.display_stats()
+      calculon.write_json_file(model.get_display_stats(), args.stats)
     else:
       assert False, f'unknown stats extension: {args.stats}'
 

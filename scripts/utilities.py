@@ -8,7 +8,7 @@ def parseJSON(filename):
 
 def dumpJSON(filename, map):
     with open(filename, "w+") as json_file:
-        json.dump(map, json_file)
+        json.dump(map, json_file, indent=2)
         
 def createDirectory(directory_path):
     if not os.path.isdir(directory_path):
@@ -39,6 +39,17 @@ def generateSystemFileNameString(sys_config):
     )
     system_filename = compute_str + mem_str + network_str + ".json"
     return system_filename
+
+def generateArchFileNameString(arch_config):
+    str_builder = "{}_t{}_p{}_d{}_mbs{}{}{}{}_full".format(
+        arch_config["num_procs"],
+        arch_config["tensor_par"], arch_config["pipeline_par"], arch_config["data_par"],
+        arch_config["microbatch_size"],
+        "_wo" if arch_config["weight_offload"] == "true" else "",
+        "_ao" if arch_config["activations_offload"] == "true" else "",
+        "_oo" if arch_config["optimizer_offload"] == "true" else ""
+    )
+    return str_builder
         
 # Generate the bash script used to run simulations in Netbench
 def generateBashScript(exec_dir, config_file_list, exp_name=""):
@@ -49,6 +60,7 @@ def generateBashScript(exec_dir, config_file_list, exp_name=""):
     exec_file_name = "automated_execution.sh"
     # Write the script to the .sh file
     for config_file in config_file_list:
+        print(config_file_list)
         assert(len(config_file) == 3), "[Error] Must have 3 file inputs, now have {}".format(len(config_file))
         str_builder += (exec_prefix + " " + config_file[0] + " " + config_file[1] + " " + config_file[2] + "\n")
     with open(exec_dir + exec_file_name, "w+") as f:
