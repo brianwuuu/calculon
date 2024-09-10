@@ -70,6 +70,12 @@ class System:
 
   def get_mem2_throughput(self, size):
     return self.mem2.throughput(size)
+  
+  def get_mem1_capacity(self):
+    return self.mem1.capacity
+  
+  def get_mem2_capacity(self):
+    return self.mem2.capacity
 
   def compute_offload_time(self, size):
     return size / self.mem2.throughput(size)

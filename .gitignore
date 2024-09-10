@@ -45,3 +45,6 @@ nosetests.xml
 /temp/
 /systems/
 /execution/
+/venv_mac_m1/
+/results/
+/sc23-main/

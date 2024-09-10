@@ -51,21 +51,7 @@ def analyzeMemBandwidth():
     plot_util.plotMultiLineChart(x = x_, y = y_, path = "")
 
 def main():
-    print("[ANALYSIS] Starting analysis ...")
-    try:
-        opts, args = getopt.getopt(sys.argv[1:],"he:c:",["exp="])
-    except getopt.GetoptError:
-        print('python3 analysis.py -e <experiment>')
-        sys.exit(2)
-    exp_type = ""
-    for opt, arg in opts:
-        if opt == '-h':
-            print('python3 analysis.py -e <experiment>')
-            sys.exit()
-        elif opt in ("-e", "--exp"):
-            exp_type = arg
-    if exp_type == "mem_bw":
-        analyzeMemBandwidth()
+    analyzeMemBandwidth()
         
 if __name__ == '__main__':
     main()

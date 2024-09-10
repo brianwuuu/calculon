@@ -29,6 +29,7 @@ def cartesianProduct(param_list):
         
 def generateSystemFileNameString(sys_config):
     compute_str = "{}tflops_".format(sys_config["matrix"]["float16"]["tflops"])
+    compute_str += "rl_" if sys_config["processing_mode"] == "roofline" else ""
     mem_str = "mem1_{}GBps_{}GB_mem2_{}GBps_{}GB_".format(
         sys_config["mem1"]["GBps"], sys_config["mem1"]["GiB"],
         sys_config["mem2"]["GBps"], sys_config["mem2"]["GiB"],
@@ -45,10 +46,16 @@ def generateArchFileNameString(arch_config):
         arch_config["num_procs"],
         arch_config["tensor_par"], arch_config["pipeline_par"], arch_config["data_par"],
         arch_config["microbatch_size"],
-        "_wo" if arch_config["weight_offload"] == "true" else "",
-        "_ao" if arch_config["activations_offload"] == "true" else "",
-        "_oo" if arch_config["optimizer_offload"] == "true" else ""
+        "_wo" if arch_config["weight_offload"] == True else "",
+        "_ao" if arch_config["activations_offload"] == True else "",
+        "_oo" if arch_config["optimizer_offload"] == True else ""
     )
+    return str_builder
+
+def generateModelFileNameString(model_config):
+    str_builder = "{}h_{}ff_{}ss_{}ah_{}as_{}nb".format(
+        model_config["hidden"], model_config["feedforward"], model_config["seq_size"], 
+        model_config["attn_heads"], model_config["attn_size"], model_config["num_blocks"])
     return str_builder
         
 # Generate the bash script used to run simulations in Netbench
@@ -60,7 +67,6 @@ def generateBashScript(exec_dir, config_file_list, exp_name=""):
     exec_file_name = "automated_execution.sh"
     # Write the script to the .sh file
     for config_file in config_file_list:
-        print(config_file_list)
         assert(len(config_file) == 3), "[Error] Must have 3 file inputs, now have {}".format(len(config_file))
         str_builder += (exec_prefix + " " + config_file[0] + " " + config_file[1] + " " + config_file[2] + "\n")
     with open(exec_dir + exec_file_name, "w+") as f:

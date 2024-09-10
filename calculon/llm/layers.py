@@ -320,6 +320,19 @@ class Layer:
       raise Exception(f'Bad compute stage : {stage}')
     return mem / self.sys.get_mem1_throughput(mem)
 
+  def compute_mem_time_v2(self, stage, mem_tier):
+    if stage == "fw":
+      mem = self.get_fw_mem_accessed()
+    elif stage == "agrad":
+      mem = self.get_agrad_mem_accessed()
+    elif stage == "wgrad":
+      mem = self.get_wgrad_mem_accessed()
+    elif stage == "optim":
+      mem = self.get_optim_step_mem_accessed()
+    else:
+      raise Exception(f'Bad compute stage : {stage}')
+    return mem / (self.sys.get_mem1_throughput(mem) if mem_tier == "mem1" else self.sys.get_mem2_throughput(mem))
+
   def compute_net_time(self, stage, baseblock=True):
     return 0
 
@@ -333,6 +346,13 @@ class Layer:
     self.processing_time =  self.sys.get_processing_time(
       self.compute_flops_time(stage),
       self.compute_mem_time(stage)
+    )
+    return self.processing_time
+
+  def compute_processing_time_v2(self, stage, mem_tier="mem2"):
+    self.processing_time =  self.sys.get_processing_time(
+      self.compute_flops_time(stage),
+      self.compute_mem_time_v2(stage, mem_tier)
     )
     return self.processing_time
 
@@ -892,7 +912,8 @@ class TPComm(Layer):
       return 0
     split_comm = (self.tensor_par_comm_type == 'rs_ag') or (
       (self.tensor_par_comm_type == 'p2p_rs_ag') and not baseblock)
-    net_compute_time = super().compute_processing_time(stage)
+    # net_compute_time = super().compute_processing_time(stage)
+    net_compute_time = super().compute_processing_time_v2(stage)
     if split_comm:
       if self.conjugate:
         # ReduceScatter case

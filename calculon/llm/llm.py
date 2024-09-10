@@ -1197,8 +1197,12 @@ class Llm:
       self._block_fw_flops += layer.get_fw_flops()
       self._block_fw_flops_time += layer.compute_flops_time("fw")
       self._block_fw_mem_accessed += layer.get_fw_mem_accessed()
-      self._block_fw_mem_time += layer.compute_mem_time("fw")
-      self._block_fw_time += layer.compute_processing_time("fw")
+      # self._block_fw_mem_time += layer.compute_mem_time("fw", self.stage_to_mem_map)
+      self._block_fw_mem_time += layer.compute_mem_time_v2("fw", 
+                                                           self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else "mem2")
+      # self._block_fw_time += layer.compute_processing_time("fw")
+      self._block_fw_time += layer.compute_processing_time_v2("fw",
+                                                              self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else "mem2")
       self._baseblock_fw_tp_size += layer.get_comm_bytes("fw",
         baseblock=True)
       self._edgeblock_fw_tp_size += layer.get_comm_bytes("fw",
@@ -1221,7 +1225,9 @@ class Llm:
           self._block_re_flops_time += self._block_fw_flops_time
           self._block_re_mem_accessed += self._block_fw_mem_accessed
           self._block_re_mem_time += self._block_fw_mem_time
-          self._block_re_time += layer.compute_processing_time("fw")
+          # self._block_re_time += layer.compute_processing_time("fw")
+          self._block_re_time += layer.compute_processing_time_v2("fw",
+                                                                  self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else "mem2")
         if layer.get_recomm_flag():
           self._baseblock_recomm_size += layer.get_comm_bytes("wgrad",
             baseblock=True)
@@ -1238,8 +1244,12 @@ class Llm:
         self._block_agrad_flops += layer.get_agrad_flops()
         self._block_agrad_flops_time += layer.compute_flops_time("agrad")
         self._block_agrad_mem_accessed += layer.get_agrad_mem_accessed()
-        self._block_agrad_mem_time += layer.compute_mem_time("agrad")
-        self._block_agrad_time += layer.compute_processing_time("agrad")
+        # self._block_agrad_mem_time += layer.compute_mem_time("agrad")
+        self._block_agrad_mem_time += layer.compute_mem_time_v2("agrad", 
+                                                                self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else "mem2")
+        # self._block_agrad_time += layer.compute_processing_time("agrad")
+        self._block_agrad_time += layer.compute_processing_time_v2("agrad",
+                                                                   self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else "mem2")
         self._baseblock_agrad_tp_size += layer.get_comm_bytes("agrad",
           baseblock=True)
         self._edgeblock_agrad_tp_size += layer.get_comm_bytes("agrad",
@@ -1259,13 +1269,21 @@ class Llm:
         self._block_wgrad_flops += layer.get_wgrad_flops()
         self._block_wgrad_flops_time += layer.compute_flops_time("wgrad")
         self._block_wgrad_mem_accessed += layer.get_wgrad_mem_accessed()
-        self._block_wgrad_mem_time += layer.compute_mem_time("wgrad")
-        self._block_wgrad_time += layer.compute_processing_time("wgrad")
+        # self._block_wgrad_mem_time += layer.compute_mem_time("wgrad")
+        self._block_wgrad_mem_time += layer.compute_mem_time_v2("wgrad", 
+                                                                self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else "mem2")
+        # self._block_wgrad_time += layer.compute_processing_time("wgrad")
+        self._block_wgrad_time += layer.compute_processing_time_v2("wgrad",
+                                                                self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else "mem2")
         self._block_optim_flops += layer.get_optim_step_flops()
         self._block_optim_flops_time += layer.compute_flops_time("optim")
         self._block_optim_mem_accessed += layer.get_optim_step_mem_accessed()
-        self._block_optim_mem_time += layer.compute_mem_time("optim")
-        self._block_optim_time += layer.compute_processing_time("optim")
+        # self._block_optim_mem_time += layer.compute_mem_time("optim")
+        self._block_optim_mem_time += layer.compute_mem_time_v2("optim", 
+                                                                self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else "mem2")
+        # self._block_optim_time += layer.compute_processing_time("optim")
+        self._block_optim_time += layer.compute_processing_time_v2("optim",
+                                                                   self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else "mem2")
 
       # Accumulate space requirements per block
       self._block_weight_space += layer.get_weight()
@@ -1319,8 +1337,10 @@ class Llm:
                      layer.compute_net_time("fw"))
       self.log.debug("%s %s %.3e", layer.name, 'FW net exposed time:',
                      layer.get_exposed_net_time("fw"))
-      self.log.debug("%s %s %.3e", layer.name, 'FW time:',
-                     layer.compute_processing_time("fw"))
+      # self.log.debug("%s %s %.3e", layer.name, 'FW time:',
+      #                layer.compute_processing_time("fw"))
+      self.log.debug("%s %s %.3e", layer.name, 'FW time:', 
+                     layer.compute_processing_time_v2("fw", self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else "mem2") )
       self.log.debug("%s %s %s", layer.name, 'BW flops:',
                      human_format(
                       layer.get_agrad_flops() + layer.get_wgrad_flops(),
@@ -1351,9 +1371,12 @@ class Llm:
                      layer.compute_net_time("agrad"))
       self.log.debug("%s %s %.3e", layer.name, 'BW net exposed time:',
                      layer.get_exposed_net_time("agrad"))
+      # self.log.debug("%s %s %.3e", layer.name, 'BW time:',
+      #                layer.compute_processing_time("agrad") +
+      #                layer.compute_processing_time("wgrad"))
       self.log.debug("%s %s %.3e", layer.name, 'BW time:',
-                     layer.compute_processing_time("agrad") +
-                     layer.compute_processing_time("wgrad"))
+                     layer.compute_processing_time_v2("agrad", self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else "mem2") +
+                     layer.compute_processing_time_v2("wgrad", self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else "mem2") )
       self.log.debug("%s %s %s", layer.name, 'Recomm baseblock comm tile size:',
                      human_format(layer.get_comm_tile("wgrad", baseblock=True),
                      'bytes'))
@@ -1376,8 +1399,10 @@ class Llm:
                      human_format(layer.get_optimizer(), 'bytes'))
       self.log.debug("%s %s %s", layer.name, 'Optim mem:',
                      human_format(layer.get_optim_step_mem_accessed(), 'bytes'))
+      # self.log.debug("%s %s %.3e", layer.name, 'Optim time:',
+      #                layer.compute_processing_time("optim"))
       self.log.debug("%s %s %.3e", layer.name, 'Optim time:',
-                     layer.compute_processing_time("optim"))
+                     layer.compute_processing_time_v2("optim",self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else "mem2") )
       self.log.debug("%s %s %.3e", layer.name, 'Recompute:',
                      layer.get_recompute_flag())
       self.log.debug("%s %s %s", layer.name, 'Recompute mem saving:',
@@ -2012,9 +2037,16 @@ class Llm:
     assert self._compiled, "You must first call self.compile()"
     assert not self._executed
     assert isinstance(sys, System)
+    ## Init field
+    self.stage_to_mem_map = {}
     self._compute_block_stats()
     self._compute_batch_stats()
-    self._check_mem_caps()
+    
+    self._set_mem()
+    self._compute_block_stats()
+    self._compute_batch_stats()
+    
+    # self._check_mem_caps()
     self._misc_sanity_checks()
     self._executed = True
 
@@ -2030,7 +2062,8 @@ class Llm:
         act_offload_size = self._block_act_checkpoint_size
     else:
       act_offload_size = 0
-    return max(weight_offload_size, act_offload_size)
+    # return max(weight_offload_size, act_offload_size)
+    return weight_offload_size + act_offload_size
 
   def _get_bw_offload_size(self):
     bw_offload_size = 0
@@ -2275,6 +2308,51 @@ class Llm:
 
   def get_mem_tier2_cap_req(self):
     return self._get_mem_cap_reqs()[1]
+  
+  def _set_mem(self):
+    mem1, mem2 = 0, 0
+    use_mem1 = True
+    self.stage_to_mem_map = {}
+    mem1 += self.get_weight_space() + self.get_act_space() + self.get_act_checkpoint_size()
+    if mem1 <= self.sys.get_mem1_capacity():
+      self.stage_to_mem_map["fw"] = "mem1"
+    else:
+      mem2 += self.get_weight_space() + self.get_act_space() + self.get_act_checkpoint_size()
+      assert(mem2 <= self.sys.get_mem2_capacity()), f"{mem2}, {self.sys.get_mem2_capacity()}"
+      self.stage_to_mem_map["fw"] = "mem2"
+      use_mem1 = False
+      print(f"fw requires {mem2/1e9} GB of memory.")
+    
+    mem1 += self.get_weight_grad_space()
+    if use_mem1 and mem1 <= self.sys.get_mem1_capacity():
+      self.stage_to_mem_map['wgrad'] = "mem1"
+    else:
+      mem2 += self.get_weight_grad_space()
+      self.stage_to_mem_map['wgrad'] = "mem2"
+      assert(mem2 <= self.sys.get_mem2_capacity()), f"{mem2}, {self.sys.get_mem2_capacity()}"
+      use_mem1 = False
+      print(f"wgrad requires {self.get_weight_grad_space()/1e9} GB of memory.")
+      
+    mem1 += self.get_optimizer_space()
+    if use_mem1 and mem1 <= self.sys.get_mem1_capacity():
+      self.stage_to_mem_map['optim'] = "mem1"
+    else:
+      mem2 += self.get_optimizer_space()
+      self.stage_to_mem_map['optim'] = "mem2"
+      assert(mem2 <= self.sys.get_mem2_capacity()), f"{mem2}, {self.sys.get_mem2_capacity()}"
+      use_mem1 = False
+      print(f"optim requires {self.get_optimizer_space()/1e9} GB of memory.")
+    
+    mem1 += self.get_act_grad_space()
+    if use_mem1 and mem1 <= self.sys.get_mem1_capacity():
+      self.stage_to_mem_map['agrad'] = "mem1"
+    else:
+      mem2 += self.get_act_grad_space()
+      assert(mem2 <= self.sys.get_mem2_capacity()), f"{mem2}, {self.sys.get_mem2_capacity()}"
+      self.stage_to_mem_map['agrad'] = "mem2"
+      use_mem1 = False
+      print(f"agrad requires {self.get_act_grad_space()/1e9} GB of memory.")
+    print(self.stage_to_mem_map)
 
   def get_act_offload_bw_req(self):
     # We should be able to offload (write) activation during FW pass and
