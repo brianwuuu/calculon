@@ -6,6 +6,8 @@ import matplotlib.ticker as ticker
 from matplotlib.ticker import FormatStrFormatter
 
 mpl.rcParams['font.family'] = "serif"
+mpl.rcParams['hatch.linewidth'] = 0.5
+mpl.use('tkagg')
 
 color_cycle = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'] # ['darkcyan', 'lime', 'darkred','deeppink', 'blueviolet',  "silver", 'black']
 mcolor_cycle = list(mcolors.TABLEAU_COLORS.values())
@@ -95,27 +97,32 @@ def plotMultiColBarChart(x, y, path=""):
     else: plt.show()
     plt.close()
     
-def plotMultiColStackedBarChart(x, y, log=False, path=""):
+def plotMultiColStackedBarChart(x, y, log=False, path="", **kwargs):
     print("[ANALYSIS] Plotting multi-stacked bar chart for " + y["label"] + " vs " + x["label"])
-    fig, ax = plt.subplots(1, figsize=(3.5,2.3),dpi=200)
+    # plt.style.use(['ggplot'])
+    fig, ax = plt.subplots(1, figsize=(2.3,2.3),dpi=200)
     bottom = np.zeros(len(x["data"]))
     for i, (label, data) in enumerate(y["data"].items()):
-        ax.bar(x["data"], data, width=0.4, label=label, bottom=bottom, color=bar_color_cycle[i])
+        ax.bar(x["data"], data, width=0.4, label=label, bottom=bottom, edgecolor="black", linewidth=0.6)
         bottom += data
-    if y["log"]: ax.set_yscale('log',base=y["log"])
-    if x["log"]: ax.set_xscale('log',base=x["log"])
-    ax.grid(which='major', axis='x', linestyle=':', linewidth=0.3)
-    ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.3)
-    ax.grid(which='major', axis='y', linestyle='--',linewidth=0.3)
-    ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.3)
+    ax.set_xticklabels(x["data"], fontsize=label_fontsize, ha="center")
     ax.set_xlabel(x["label"], fontsize=label_fontsize)
     ax.set_ylabel(y["label"], fontsize=label_fontsize)
     ax.tick_params(axis='x', labelsize=label_fontsize)
     ax.tick_params(axis='y', labelsize=label_fontsize)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right") # rotation=45, ha="right"
-    ax.grid(axis='y', linestyle='--')
-    plt.legend(bbox_to_anchor= (0, 1),loc="lower left", ncol=4, fontsize=legend_fontsize)
-    # plt.legend(fontsize=legend_fontsize,ncol=3)
+    if "log" in y.keys() and y["log"]: ax.set_yscale('log', base=y["log"])
+    if "log" in x.keys() and x["log"]: ax.set_xscale('log', base=x["log"])
+    if "limit" in y.keys() and y["limit"]: ax.set_ylim(*y['limit'])
+    if "limit" in x.keys() and x["limit"]: ax.set_xlim(*x['limit'])
+    if "sci" in y.keys() and y["sci"]: ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    if "sci" in x.keys() and x["sci"]: ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    if "title" in kwargs: ax.set_title(kwargs['title'], fontsize=label_fontsize)
+    ax.grid(which='major', axis='x', linestyle=':', linewidth=0.1)
+    ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.1)
+    ax.grid(which='major', axis='y', linestyle='--',linewidth=0.1)
+    ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.1)
+    # plt.legend(bbox_to_anchor= (0.35, 0.45),loc="lower left", ncol=2, fontsize=legend_fontsize)
+    plt.legend(fontsize=legend_fontsize)
     plt.tight_layout()
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()

@@ -331,6 +331,27 @@ class Layer:
       mem = self.get_optim_step_mem_accessed()
     else:
       raise Exception(f'Bad compute stage : {stage}')
+    mem_time = 0
+    mem_bytes = 0
+    print(mem_tier)
+    for (tier, bytes) in mem_tier:
+      mem_tput = self.sys.get_mem1_throughput(bytes) if tier == "mem1" else self.sys.get_mem2_throughput(bytes)
+      mem_time += mem_bytes / mem_tput
+      mem_bytes += bytes
+    # assert(mem_bytes == mem), f"{mem_bytes}, {mem}"
+    return mem_time
+
+  def compute_mem_time_archive(self, stage, mem_tier):
+    if stage == "fw":
+      mem = self.get_fw_mem_accessed()
+    elif stage == "agrad":
+      mem = self.get_agrad_mem_accessed()
+    elif stage == "wgrad":
+      mem = self.get_wgrad_mem_accessed()
+    elif stage == "optim":
+      mem = self.get_optim_step_mem_accessed()
+    else:
+      raise Exception(f'Bad compute stage : {stage}')
     return mem / (self.sys.get_mem1_throughput(mem) if mem_tier == "mem1" else self.sys.get_mem2_throughput(mem))
 
   def compute_net_time(self, stage, baseblock=True):
@@ -349,7 +370,7 @@ class Layer:
     )
     return self.processing_time
 
-  def compute_processing_time_v2(self, stage, mem_tier="mem2"):
+  def compute_processing_time_v2(self, stage, mem_tier=[("mem2",1e6)]):
     self.processing_time =  self.sys.get_processing_time(
       self.compute_flops_time(stage),
       self.compute_mem_time_v2(stage, mem_tier)
