@@ -14,11 +14,11 @@ def createDirectory(directory_path):
     if not os.path.isdir(directory_path):
         os.mkdir(directory_path)
 
-def createOutputDirectory(output_dir, model_dir, arch_dir, sys_dir):
+def createOutputDirectory(output_dir, model_dir, arch_dir):
     createDirectory(output_dir + model_dir)
     createDirectory(output_dir + model_dir + "/" + arch_dir)
-    createDirectory(output_dir + model_dir + "/" + arch_dir + "/" + sys_dir)
-    return output_dir + model_dir + "/" + arch_dir + "/" + sys_dir + "/"
+    createDirectory(output_dir + model_dir + "/" + arch_dir + "/")
+    return output_dir + model_dir + "/" + arch_dir + "/" 
 
 def writeStringToFile(filename, string):
     with open(filename, "w+") as f:
