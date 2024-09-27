@@ -2479,6 +2479,15 @@ class Llm:
   def get_sample_rate(self):
     return self.exe.global_batch_size / self.get_total_time()
 
+  def get_arithmetic_intensity(self):
+    flops, mem_bytes = 0, 0
+    for layer in self._llm_block:
+      flops += layer.get_total_flops()
+      mem_bytes += layer.get_total_mem_accessed()
+    if flops == 0: return 0
+    if mem_bytes == 0: return float('inf')
+    return flops / mem_bytes
+  
   def display_stats(self):
     stats = "=" * 80 + "\n"
     stats += "" \
@@ -2531,7 +2540,8 @@ class Llm:
       f"Compute efficiency: {self.get_compute_efficiency()*100:.2f}%;\n" \
       f"System efficiency: {self.get_system_efficiency()*100:.2f}%;\n" \
       f"Total efficiency: {self.get_total_efficiency()*100:.2f}%;\n" \
-      f"Sample rate: {self.get_sample_rate():.2f};\n"
+      f"Sample rate: {self.get_sample_rate():.2f};\n" \
+      f"Arithmetic Intensity: {self.get_arithmetic_intensity()};\n"
     self.log.info(stats)
     
   def get_display_stats(self):
@@ -2576,4 +2586,5 @@ class Llm:
       "System efficiency": self.get_system_efficiency()*100,
       "Total efficiency": self.get_total_efficiency()*100,
       "Sample rate": self.get_sample_rate(),
+      "Arithmetic Intensity": self.get_arithmetic_intensity()
     }

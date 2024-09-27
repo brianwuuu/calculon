@@ -116,6 +116,29 @@ class Layer:
       'activation_grad': self.get_activation_grad(),
       'optimizer': self.get_optimizer()
     }
+  
+  def get_total_flops(self):
+    flops = 0
+    flops += self.fw_flops
+    flops += self.agrad_flops
+    flops += self.wgrad_flops
+    flops += self.get_optim_step_flops()
+    return flops
+  
+  def get_total_mem_accessed(self):
+    mem_bytes = 0
+    mem_bytes += self.get_fw_mem_accessed()
+    mem_bytes += self.get_agrad_mem_accessed()
+    mem_bytes += self.get_wgrad_mem_accessed()
+    mem_bytes += self.get_optim_step_mem_accessed()
+    return mem_bytes
+  
+  def get_layer_arithmetic_intensity(self):
+    flops = self.get_total_flops()
+    mem_bytes = self.get_total_mem_accessed()
+    if flops == 0: return 0
+    if mem_bytes == 0: return float('inf')
+    return flops / mem_bytes
 
   def get_stats_str(self):
     stats = "Operation {0}:\n{1} FW flops, {2} FW bytes accessed,".format(
@@ -333,7 +356,7 @@ class Layer:
       raise Exception(f'Bad compute stage : {stage}')
     mem_time = 0
     mem_bytes = 0
-    print(mem_tier)
+    # print(mem_tier)
     for (tier, bytes) in mem_tier:
       mem_tput = self.sys.get_mem1_throughput(bytes) if tier == "mem1" else self.sys.get_mem2_throughput(bytes)
       mem_time += mem_bytes / mem_tput
