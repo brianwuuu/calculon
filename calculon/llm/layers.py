@@ -118,27 +118,31 @@ class Layer:
     }
   
   def get_total_flops(self):
-    flops = 0
-    flops += self.fw_flops
-    flops += self.agrad_flops
-    flops += self.wgrad_flops
-    flops += self.get_optim_step_flops()
+    flops = {"matrix":0, "vector":0, "total":0}
+    flops["matrix"] += self.fw_flops
+    flops["matrix"] += self.agrad_flops
+    flops["matrix"] += self.wgrad_flops
+    flops["vector"] += self.get_optim_step_flops()
+    flops["total"] += flops["matrix"] + flops["vector"]
     return flops
   
   def get_total_mem_accessed(self):
-    mem_bytes = 0
-    mem_bytes += self.get_fw_mem_accessed()
-    mem_bytes += self.get_agrad_mem_accessed()
-    mem_bytes += self.get_wgrad_mem_accessed()
-    mem_bytes += self.get_optim_step_mem_accessed()
+    mem_bytes = {"matrix":0, "vector":0, "total":0}
+    mem_bytes["matrix"] += self.get_fw_mem_accessed()
+    mem_bytes["matrix"] += self.get_agrad_mem_accessed()
+    mem_bytes["matrix"] += self.get_wgrad_mem_accessed()
+    mem_bytes["vector"] += self.get_optim_step_mem_accessed()
+    mem_bytes["total"] += mem_bytes["matrix"] + mem_bytes["vector"]
     return mem_bytes
   
   def get_layer_arithmetic_intensity(self):
+    ai = {"matrix":0, "vector":0}
     flops = self.get_total_flops()
     mem_bytes = self.get_total_mem_accessed()
-    if flops == 0: return 0
-    if mem_bytes == 0: return float('inf')
-    return flops / mem_bytes
+    ai["matrix"] = flops["matrix"] / mem_bytes["matrix"]
+    ai["vector"] = flops["vector"] / mem_bytes["vector"]
+    ai["total"] = flops["total"] / mem_bytes["total"]
+    return ai
 
   def get_stats_str(self):
     stats = "Operation {0}:\n{1} FW flops, {2} FW bytes accessed,".format(

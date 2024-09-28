@@ -2360,7 +2360,7 @@ class Llm:
       self._mem2_used += expected_mem - mem1_unused
       self.stage_to_mem_map["agrad"] = [("mem1", mem1_unused), ("mem2", expected_mem - mem1_unused)]
       assert(self._mem2_used <= self.sys.get_mem2_capacity()), f"{self._mem2_used}, {self.sys.get_mem2_capacity()}"
-    print(self.stage_to_mem_map, self._mem1_used, self._mem2_used)
+    # print(self.stage_to_mem_map, self._mem1_used, self._mem2_used)
   
   def _set_mem_archive(self):
     # TODO: implement continous memory mapping: can use partial mem1 and partial mem2
@@ -2415,7 +2415,7 @@ class Llm:
       self.stage_to_mem_map['agrad'] = "mem2"
       use_mem1 = False
       print(f"agrad requires {self.get_act_grad_space()/1e9} GB of memory.")
-    print(self.stage_to_mem_map, mem1, mem2)
+    # print(self.stage_to_mem_map, mem1, mem2)
 
   def get_mem_tier1_cap_used(self):
     return self._mem1_used
@@ -2480,13 +2480,22 @@ class Llm:
     return self.exe.global_batch_size / self.get_total_time()
 
   def get_arithmetic_intensity(self):
-    flops, mem_bytes = 0, 0
+    flops = {"matrix":0, "vector":0, "total":0}
+    mem_bytes = {"matrix":0, "vector":0, "total":0}
     for layer in self._llm_block:
-      flops += layer.get_total_flops()
-      mem_bytes += layer.get_total_mem_accessed()
-    if flops == 0: return 0
-    if mem_bytes == 0: return float('inf')
-    return flops / mem_bytes
+      l_flops = layer.get_total_flops()
+      l_mem_bytes = layer.get_total_mem_accessed()
+      flops["matrix"] += l_flops["matrix"]
+      flops["vector"] += l_flops["vector"]
+      flops["total"] += l_flops["total"]
+      mem_bytes["matrix"] += l_mem_bytes["matrix"]
+      mem_bytes["vector"] += l_mem_bytes["vector"]
+      mem_bytes["total"] += l_mem_bytes["total"]
+    ai = {}
+    ai["matrix"] = flops["matrix"] / mem_bytes["matrix"]
+    ai["vector"] = flops["vector"] / mem_bytes["vector"]
+    ai["total"] = flops["total"] / mem_bytes["total"]
+    return ai
   
   def display_stats(self):
     stats = "=" * 80 + "\n"

@@ -25,7 +25,7 @@ def generate_model_configs(model_params, **kwargs):
     Args:
         model_params: [(hidden, attn_size, num_blocks)]
     """
-    model = "gpt3-175B"
+    model = "megatron-5B" # "gpt3-175B", 
     model_base_filename = MODEL_DIRECTORY + model + ".json"
     model_base = utilities.parseJSON(model_base_filename)
     seq_size = 2048 # 2048 (GPT-3), 8192
@@ -66,6 +66,8 @@ def generate_arch_configs(arch_params, **kwargs):
         new_arch["weight_offload"] = False
         new_arch["activations_offload"] = False
         new_arch["optimizer_offload"] = False
+        # parallelization params
+        new_arch["optimizer_sharding"] = False
         arch_filename = utilities.generateArchFileNameString(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
         utilities.dumpJSON(arch_config_file, new_arch)
@@ -115,22 +117,28 @@ def setup_experiment(mem_params, net_params, model_params, arch_params):
     model_config_files = generate_model_configs(model_params)
     arch_config_files = generate_arch_configs(arch_params)
     config_files = generate_output_files(model_config_files, arch_config_files, sys_config_files)
+    print(config_files)
     bash_script = utilities.generateBashScript(EXECUTION_DIRECTORY, config_files)
     # utilities.generateExecutionScript(EXECUTION_DIRECTORY, bash_script_names)
 
+def get_required_mem_bw(sys_params):
+    
+    return
+
 def generate_sipam_experiment():
-    model_params = [(12288,128,96)] # GPT3-175B
+    model_params = [(4096, 128, 24)] # GPT3-175B: (12288,128,96)
     arch_params = [
-                   (8,2,2,2), # (16,2,4,2), (32,2,8,2), (64,2,16,2), 
-                #    (128,2,32,2), (256,2,32,4), (512,4,32,4),(1024,4,32,8), 
-                #    (2048,8,32,8), (4096,8,32,16)
+                   (1,1,1,1)
+                #    (8,2,2,2), (16,2,4,2), (32,2,8,2), 
+                #    (64,2,16,2), (128,2,32,2), (256,2,32,4), 
+                #    (512,4,32,4),(1024,4,32,8), (2048,8,32,8), (4096,8,32,16)
                    ]
     total_length_mm = 96
     per_hbm_length_mm = 12
     per_pic_length_mm = 8
     per_pic_bw_GBps = 2048 # 2033, 2048
     
-    num_local_hbms = [1] # 0,1,2,4,6
+    num_local_hbms = [6] # 0,1,2,4,6
     per_hbm_bw_GBps = 500
     per_hbm_capacity_GB = 16
     
