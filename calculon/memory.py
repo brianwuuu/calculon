@@ -21,6 +21,7 @@ class Memory:
   def __init__(self, cfg):
     self._capacity = cfg['GiB'] * 1024**3
     self._bandwidth = cfg['GBps'] * 1e9
+    self._latency = cfg['ns'] * 1e-9
     self._efficiency = []
     for mbytes, eff in cfg['MB_efficiency']:
       bytes = mbytes * 1e6
@@ -31,6 +32,10 @@ class Memory:
   def capacity(self):
     return self._capacity
 
+  @property
+  def latency(self):
+    return self._latency
+  
   @property
   def bandwidth(self):
     return self._bandwidth

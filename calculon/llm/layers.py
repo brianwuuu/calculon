@@ -345,7 +345,7 @@ class Layer:
       mem = self.get_optim_step_mem_accessed()
     else:
       raise Exception(f'Bad compute stage : {stage}')
-    return mem / self.sys.get_mem1_throughput(mem)
+    return mem / self.sys.get_mem1_throughput(mem) + self.sys.get_mem1_latency()
 
   def compute_mem_time_v2(self, stage, mem_tier):
     if stage == "fw":
@@ -363,7 +363,8 @@ class Layer:
     # print(mem_tier)
     for (tier, bytes) in mem_tier:
       mem_tput = self.sys.get_mem1_throughput(bytes) if tier == "mem1" else self.sys.get_mem2_throughput(bytes)
-      mem_time += mem_bytes / mem_tput
+      mem_lat = self.sys.get_mem1_latency() if tier == "mem1" else self.sys.get_mem2_latency()
+      mem_time += mem_bytes / mem_tput + mem_lat
       mem_bytes += bytes
     # assert(mem_bytes == mem), f"{mem_bytes}, {mem}"
     return mem_time
@@ -379,7 +380,9 @@ class Layer:
       mem = self.get_optim_step_mem_accessed()
     else:
       raise Exception(f'Bad compute stage : {stage}')
-    return mem / (self.sys.get_mem1_throughput(mem) if mem_tier == "mem1" else self.sys.get_mem2_throughput(mem))
+    mem_tput = self.sys.get_mem1_throughput(mem) if mem_tier == "mem1" else self.sys.get_mem2_throughput(mem)
+    mem_lat = self.sys.get_mem1_latency() if mem_tier == "mem1" else self.sys.get_mem2_latency()
+    return mem / mem_tput + mem_lat
 
   def compute_net_time(self, stage, baseblock=True):
     return 0

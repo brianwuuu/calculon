@@ -71,6 +71,12 @@ class System:
   def get_mem2_throughput(self, size):
     return self.mem2.throughput(size)
   
+  def get_mem1_latency(self):
+    return self.mem1.latency
+  
+  def get_mem2_latency(self):
+    return self.mem2.latency
+  
   def get_mem1_capacity(self):
     return self.mem1.capacity
   

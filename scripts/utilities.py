@@ -1,5 +1,8 @@
 import os, sys, stat, json, itertools
 
+def nearest_pow_of_2(x):
+    return 1<<(x-1).bit_length()
+
 # Parse JSON file into dictionary object
 def parseJSON(filename):
     with open(filename) as json_file: 
