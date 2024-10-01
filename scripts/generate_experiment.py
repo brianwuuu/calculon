@@ -2,8 +2,8 @@
 File generating script for memory disaggregation experiments.
 """
 
-import os, sys, getopt
-import math, pprint, copy
+import os, sys
+import pprint, copy
 import numpy as np
 import utilities
 from table import get_workload_info, get_cu_info, get_mem_info
@@ -21,12 +21,12 @@ MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
 ARCH_DIRECTORY = BASE_DIRECTORY + "examples/"
 EXECUTION_DIRECTORY = BASE_DIRECTORY + "execution/"
 
-def generate_model_configs(model_params, **kwargs):
+def generate_model_configs(model_params, base_model_name="megatron-5B", **kwargs):
     """
     Args:
         model_params: [(hidden, attn_size, num_blocks)]
     """
-    model = "megatron-5B" # "gpt3-175B", 
+    model = base_model_name # "gpt3-175B", "megatron-5B"
     model_base_filename = MODEL_DIRECTORY + model + ".json"
     model_base = utilities.parseJSON(model_base_filename)
     seq_size = 2048 # 2048 (GPT-3), 8192
@@ -70,7 +70,7 @@ def generate_arch_configs(arch_params, **kwargs):
         new_arch["activations_offload"] = False
         new_arch["optimizer_offload"] = False
         # parallelization params
-        new_arch["optimizer_sharding"] = False
+        new_arch["optimizer_sharding"] = True if data_par > 1 else False
         arch_filename = utilities.generateArchFileNameString(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
         utilities.dumpJSON(arch_config_file, new_arch)
@@ -91,7 +91,7 @@ def generate_system_configs(mem_params, net_params):
     for mem_param, net_param in zip(mem_params, net_params):
             new_system = copy.deepcopy(system_base)
             new_system["mem1"]["GiB"], new_system["mem1"]["GBps"], new_system["mem1"]["ns"] = mem_param[0], mem_param[1], mem_param[2]
-            new_system["mem2"]["GiB"], new_system["mem2"]["GBps"], new_system["mem2"]["ns"] = mem_param[3], net_param[4], net_param[5]
+            new_system["mem2"]["GiB"], new_system["mem2"]["GBps"], new_system["mem2"]["ns"] = mem_param[3], mem_param[4], mem_param[5]
             new_system["networks"][0]["bandwidth"], new_system["networks"][0]["latency"], new_system["networks"][0]["processor_usage"] = net_param[0], net_param[1], net_param[2]
             new_system["networks"][1]["bandwidth"], new_system["networks"][1]["latency"], new_system["networks"][1]["processor_usage"] = net_param[3], net_param[4], net_param[5]
             new_system["networks"][0]["size"] = 32768
@@ -116,13 +116,19 @@ def generate_output_files(model_config_files, arch_config_files, sys_config_file
         new_config_files.append((model, arch, output_str))
     return new_config_files
 
-def setup_experiment(mem_params, net_params, model_params, arch_params):
+def setup_experiment(mem_params, net_params, model_params, arch_params, base_model_name):
     sys_config_files = generate_system_configs(mem_params, net_params)
-    model_config_files = generate_model_configs(model_params)
+    model_config_files = generate_model_configs(model_params, base_model_name)
     arch_config_files = generate_arch_configs(arch_params)
     config_files = generate_output_files(model_config_files, arch_config_files, sys_config_files)
     bash_script = utilities.generateBashScript(EXECUTION_DIRECTORY, config_files)
     # utilities.generateExecutionScript(EXECUTION_DIRECTORY, bash_script_names)
+
+def generate_simple_experiment():
+    model_params = [] # GPT3-175B: (12288,128,96)
+    arch_params = [(1,1,1,1)]
+    mem_params, net_params = [], []
+    setup_experiment(mem_params, net_params, model_params, arch_params, base_model_name="turing-530B")
 
 def generate_sipam_experiment():
     model_params = [(4096, 128, 24)] # GPT3-175B: (12288,128,96)
@@ -152,43 +158,38 @@ def generate_sipam_experiment():
         # ratio
         mem_to_net_split = [(x, num_pic - x) for x in range(1, num_pic)]
         for mem_ratio, net_ratio in mem_to_net_split:
-            print(mem_ratio, net_ratio)
             mem_params.append((local_hbm_capacity_GB, local_hbm_bw_GBps, 1000, mem_ratio*per_pic_bw_GBps))
             net_params.append((net_ratio*per_pic_bw_GBps, 1e-5, 0.15, net_ratio*per_pic_bw_GBps, 1e-5, 0.15))
             assert((net_ratio + mem_ratio) * per_pic_bw_GBps == max_sip_bw_GBps)
-    setup_experiment(mem_params, net_params, model_params, arch_params)
+    setup_experiment(mem_params, net_params, model_params, arch_params, base_model_name="megatron-5B")
 
-def get_required_mem_bw(arithmetic_intensity, peak_flops):
-    """
-    Args: 
-        arithmetic_intensity: FLOPs/Byte
-        peak_flops: FLOPs
-    Return:
-        Byte/s
-    """
-    return peak_flops / arithmetic_intensity
-
-def get_num_required_mem_units(req_mem_bw_GBps, mem_bw_GBps):
-    return req_mem_bw_GBps / mem_bw_GBps
-
-def get_num_required_gpu(workload_size_GB, per_gpu_mem_cap_GB, pow_of_2=False):
-    num_required_gpu = np.ceil(workload_size_GB / per_gpu_mem_cap_GB)
-    if pow_of_2: return utilities.nearest_pow_of_2(num_required_gpu)
-    return num_required_gpu
-
-def get_par_params(num_gpu):
+def get_par_params(num_gpu : int):
     """ Try to map to multiple of 4 and power of 2
     TP, PP, DP
     """
-    return (1,1,num_gpu)
+    assert(num_gpu & (num_gpu-1) == 0), f"[Error] Num GPU ({num_gpu}) is not a power of 2"
+    # Step 1: Find the exponent `e` such that x = 2^e
+    e = num_gpu.bit_length() - 1  # This gives the exponent `e` since x is a power of 2
+
+    # Step 2: Divide `e` as evenly as possible into three parts (a, b, c)
+    a = e // 3
+    b = (e // 3) + (1 if (e % 3) > 0 else 0)  # Distribute remainder to b
+    c = e - (a + b)  # This will ensure the sum of a + b + c = e
+
+    # Step 3: Return the three numbers 2^a, 2^b, and 2^c
+    num1 = 2**a
+    num2 = 2**b
+    num3 = 2**c
+    assert(num1 * num2 * num3 == num_gpu), f"[Error] Invalid parallelization: {num1}, {num2}, {num3}"
+    return num1, num2, num3
     
 def optimize_flow():
     # variables
-    gpu = "h100"
+    gpu = "b100"
     workload = "megatron-5B"
-    mem = "HBM3"
+    mem = "HBM4"
     datatype = "float16"
-    
+        
     total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bw_GBps = 2048
@@ -197,23 +198,42 @@ def optimize_flow():
     cu_info = get_cu_info(gpu, datatype)
     mem_info = get_mem_info(mem)
     
-    required_mem_bw_GBps = get_required_mem_bw(workload_info["ai"], cu_info["matrix"]) / 1e9
-    num_req_mu_per_gpu = get_num_required_mem_units(required_mem_bw_GBps, mem_info["bw_GBps"])
+    # First iteration
+    req_mem_bw_per_gpu_GBps = cu_info["matrix"] / workload_info["ai"] / 1e9
+    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / mem_info["bw_GBps"]))
     per_gpu_mem_cap_GB = num_req_mu_per_gpu * mem_info["cap_GB"]
     per_gpu_mem_bw_GBps = num_req_mu_per_gpu * mem_info["bw_GBps"]
-    num_gpu = get_num_required_gpu(workload_info["size_GB"], per_gpu_mem_cap_GB)
-    
-    num_mem_pic_per_gpu = np.ceil(per_gpu_mem_bw_GBps / per_pic_bw_GBps)
-    num_net_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_mem_pic_per_gpu)) // per_pic_length_mm # round down
-    net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
+    num_gpu = int(np.ceil(workload_info["size_GB"] / per_gpu_mem_cap_GB))
+    num_gpu = utilities.nearest_pow_of_2(num_gpu)
     par_params = get_par_params(num_gpu)
     
-    mem_params = [(per_gpu_mem_cap_GB, per_gpu_mem_bw_GBps, mem_info["lat_ns"], 0,0,0)] # mem1 GB, GBps, ns; mem2 GB, GBps, ns
-    net_params = [(net_bw_GBps, 0, 0.15, net_bw_GBps, 0, 0.15)] # net1 GBps, latency, proc_util; net2 GBps, latency, proc_util
+    num_mem_pic_per_gpu = int(np.ceil(per_gpu_mem_bw_GBps / per_pic_bw_GBps))
+    num_net_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_mem_pic_per_gpu)) // per_pic_length_mm # round down
+    net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
+    
+
+    params = dict(
+              num_gpu=num_gpu,
+              arithmetic_intensity=workload_info["ai"],
+              workload_size_GB=workload_info["size_GB"],
+              req_mem_bw_per_gpu_GBps=req_mem_bw_per_gpu_GBps, 
+              num_req_mu_per_gpu=num_req_mu_per_gpu, 
+              per_gpu_mem_cap_GB=per_gpu_mem_cap_GB,
+              per_gpu_mem_bw_GBps=per_gpu_mem_bw_GBps,
+              num_mem_pic_per_gpu=num_mem_pic_per_gpu,
+              num_net_pic_per_gpu=num_net_pic_per_gpu,
+              net_bw_GBps=net_bw_GBps,
+              par_params=par_params
+              )
+    pprint.pprint(params, sort_dicts=False)
+
+    mem_params = [(per_gpu_mem_cap_GB, per_gpu_mem_bw_GBps, mem_info["lat_ns"], per_gpu_mem_cap_GB, per_gpu_mem_bw_GBps, mem_info["lat_ns"])] # mem1 GB, GBps, ns; mem2 GB, GBps, ns
+    net_params = [(net_bw_GBps, 0, 0, net_bw_GBps, 0, 0)] # net1 GBps, latency, proc_util; net2 GBps, latency, proc_util
     model_params = [] # [(hidden, attn_size, num_blocks)]
     arch_params = [(num_gpu, par_params[0], par_params[1], par_params[2])] # [(num_procs, tensor_par, pipe_par, data_par)]
-    setup_experiment(mem_params, net_params, model_params, arch_params)
+    setup_experiment(mem_params, net_params, model_params, arch_params, base_model_name=workload)
 
 if __name__ == "__main__":
+    # generate_simple_experiment()
     # generate_sipam_experiment()
     optimize_flow()
