@@ -54,12 +54,18 @@ def get_workload_info(workload : str) -> float:
 
 def get_mem_info(mem_type : str) -> dict:
     """ param per memory unit
+    HBM: https://en.wikipedia.org/wiki/High_Bandwidth_Memory
     OMI: https://blocksandfiles.com/2021/05/11/omi_serial_bus_white_paper/
     CXL: A Case for CXL-Centric Server Processors
     DDR4: https://en.wikipedia.org/wiki/DDR4_SDRAM
     DDR5: https://en.wikipedia.org/wiki/DDR5_SDRAM
     """
     table = {
+        "HBM2E": { # H100 original
+            "bw_GBps": 614,
+            "lat_ns": 106.7,
+            "cap_GB": 16
+        },
         "HBM3": {
             "bw_GBps": 800,
             "lat_ns": 106.7,
@@ -67,7 +73,7 @@ def get_mem_info(mem_type : str) -> dict:
         },
         "HBM4": {
             "bw_GBps": 1400,
-            "lat_ns": 0,
+            "lat_ns": 106.7,
             "cap_GB": 32
         },
         "DDR4": {

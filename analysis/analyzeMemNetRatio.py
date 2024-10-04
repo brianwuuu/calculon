@@ -16,7 +16,7 @@ import util
 # Directory Setup
 print("[Analysis] Start ...")
 BASE_DIRECTORY = "/Users/bwu/src/calculon/"
-OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
+OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/archive/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
 ARCH_DIRECTORY = BASE_DIRECTORY + "examples/"
@@ -25,7 +25,7 @@ EXECUTION_DIRECTORY = BASE_DIRECTORY + "execution/"
 #  Base file setup
 gpu = "h100_80g_nvl8" # "h100_inf_nvl8" # "h100_80g_nvl8"
 model = "12288h_49152ff_2048ss_96ah_128as_96nb" # "gpt3-175B"
-arch_param = (16,2,4,2) # (4096,16,32,8), (8,2,2,2), (8192,32,32,8), (16,2,4,2)
+arch_param = (4096,16,32,8) # (4096,16,32,8), (8,2,2,2), (8192,32,32,8), (16,2,4,2)
 arch = f"{arch_param[0]}_t{arch_param[1]}_p{arch_param[2]}_d{arch_param[3]}_mbs4_wo_ao_oo_full"
 system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
 model_base_filename = MODEL_DIRECTORY + model + ".json"
@@ -46,7 +46,7 @@ def analyzeHBMBandwidth():
     
     # hbm
     num_local_hbms = [1,2,4,6]
-    per_hbm_bws_GBps = [200, 300, 600, 1000, 2048, 4000]
+    per_hbm_bws_GBps = [200, 300, 600, 2048]
     job_stats = defaultdict(list)
     for per_hbm_bw_GBps in per_hbm_bws_GBps:
         for num_local_hbm in num_local_hbms:
@@ -77,9 +77,9 @@ def analyzeHBMBandwidth():
             
                 # offloading
                 new_arch = copy.deepcopy(arch_base)
-                new_arch["weight_offload"] = False
-                new_arch["activations_offload"] = False
-                new_arch["optimizer_offload"] = False
+                new_arch["weight_offload"] = True
+                new_arch["activations_offload"] = True
+                new_arch["optimizer_offload"] = True
                 arch_filename = util.generateArchFileNameString(new_arch)
                 output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
                 assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
@@ -88,9 +88,9 @@ def analyzeHBMBandwidth():
             job_stats[f"{per_hbm_bw_GBps} GBps"].append(np.min(end_time))
     pprint.pprint(job_stats)
     local_hbm_capacities = [num * per_hbm_capacity_GB for num in num_local_hbms]
-    x_ = {"label": "Local HBM Capacity (GB)", "data": local_hbm_capacities, "log":2, "limit": None}
+    x_ = {"label": "Local HBM Capacity (GB)", "data": local_hbm_capacities, "log":None, "limit": None}
     y_ = {"label": "Execution Time (s)", "data": job_stats, "log": None, "limit": None}
-    plot_util.plotMultiLineChart(x = x_, y = y_, path = "")
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_dim=(1,1), fig_size=(2.2,2), bbox_to_anchor=(0.4,0.5), title="Per HBM Bandwidth")
 
 
 def analyzePICBandwidth():
@@ -105,7 +105,7 @@ def analyzePICBandwidth():
     
     # hbm
     num_local_hbms = [1,2,4,6]
-    per_pic_bws_GBps = [200, 300, 600, 1000, 2048, 4000] # 2033, 2048
+    per_pic_bws_GBps = [200, 300, 600, 2048] # 2033, 2048
     job_stats = defaultdict(list)
     for per_pic_bw_GBps in per_pic_bws_GBps:
         for num_local_hbm in num_local_hbms:
@@ -135,9 +135,9 @@ def analyzePICBandwidth():
             
                 # offloading
                 new_arch = copy.deepcopy(arch_base)
-                new_arch["weight_offload"] = False
-                new_arch["activations_offload"] = False
-                new_arch["optimizer_offload"] = False
+                new_arch["weight_offload"] = True
+                new_arch["activations_offload"] = True
+                new_arch["optimizer_offload"] = True
                 arch_filename = util.generateArchFileNameString(new_arch)
                 output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
                 assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
@@ -148,7 +148,7 @@ def analyzePICBandwidth():
     local_hbm_capacities = [num * per_hbm_capacity_GB for num in num_local_hbms]
     x_ = {"label": "Local HBM Capacity (GB)", "data": local_hbm_capacities, "log": None, "limit": None}
     y_ = {"label": "Execution Time (s)", "data": job_stats, "log": None, "limit": None}
-    plot_util.plotMultiLineChart(x = x_, y = y_, path = "")
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_dim=(1,1), fig_size=(2.2,2), bbox_to_anchor=(0.4,0.5), title="Per PIC Bandwidth")
 
 def analyzeMemNetRatio():
     # physical dimensions
@@ -157,9 +157,9 @@ def analyzeMemNetRatio():
     per_pic_length_mm = 8
     
     # hbm
-    num_local_hbm = 4 # 0, 1, 2, 4
+    num_local_hbm = 2 # 0, 1, 2, 4
     per_hbm_capacity_GB = 16
-    per_hbm_bws_GBps = [128, 256, 512, 1024, 2048] # 300, 600, 1000, 2000
+    per_hbm_bws_GBps = [300, 600, 1000, 2000] # 300, 600, 1000, 2000
     job_stats = defaultdict(list)
     for per_hbm_bw_GBps in per_hbm_bws_GBps:
         local_hbm_length_mm = num_local_hbm * per_hbm_length_mm
@@ -192,9 +192,9 @@ def analyzeMemNetRatio():
         
             # offloading
             new_arch = copy.deepcopy(arch_base)
-            new_arch["weight_offload"] = False
-            new_arch["activations_offload"] = False
-            new_arch["optimizer_offload"] = False
+            new_arch["weight_offload"] = True
+            new_arch["activations_offload"] = True
+            new_arch["optimizer_offload"] = True
             arch_filename = util.generateArchFileNameString(new_arch)
             output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
             assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
@@ -264,10 +264,10 @@ def analyzeMemUsed():
     plot_util.plotMultiColStackedBarChart(x = x_, y = y_, path = "", title=f"{num_local_hbm} HBM")
 
 def main():
-    # analyzeMemNetRatio()
+    analyzeMemNetRatio()
     # analyzePICBandwidth()
     # analyzeHBMBandwidth()
-    analyzeMemUsed()
+    # analyzeMemUsed()
     
         
 if __name__ == '__main__':

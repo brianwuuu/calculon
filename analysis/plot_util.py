@@ -22,10 +22,10 @@ color_cycle = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
 mcolor_cycle = list(mcolors.TABLEAU_COLORS.values())
 bar_color_cycle = ["lightblue", "cadetblue", "darkseagreen", "darkcyan", "olive", "slategray", "midnightblue", "darkslateblue"]
 line_color_cycle = ["steelblue", "firebrick", "yellowgreen", "mediumpurple", "darkseagreen", "darkcyan",]
-mark_cycle = ['s', 'x','v', 'd', '+', 's', 'x','v','1', 'p', ".", "o", "^", "<", ">", "1", "2", "3", "8", "P"]
+mark_cycle = ['s', 'x', "o", '+', 'v', '1', 'd', 'p', ".", "^", "<", ">", "1", "2", "3", "8", "P"]
 line_styles = ["solid", "dashed", "dashdot", "dotted",]
 bar_hatches = [ "////////" ,"\\\\\\\\\\\\\\\\", "xxxxxxxx", "........", "||||" , "o", "O", ".", "*", "/" , "\\" , "|" , "+" , "++++" ]
-markersize_arg = 1
+markersize_arg = 6
 legend_fontsize = 6
 tick_fontsize = 6
 label_fontsize = 6
@@ -278,20 +278,20 @@ def plotMultiLineChart(x, y, path="", fig_dim=(1,1), fig_size=(2.5,2.5), **kwarg
         ax.plot(x["data"], y['data'][param], 
                 label=param, 
                 ls=line_styles[i%len(line_styles)],  # line_styles[i%len(line_styles)], 
-                marker="o", #mark_cycle[i%4], 
-                markerfacecolor='none', 
+                marker=mark_cycle[i%len(y['data'])], 
                 markersize=markersize_arg,
-                fillstyle=None,
+                fillstyle="none",
                 # color= next(ax._get_lines.prop_cycler)['color'], # line_color_cycle[i],
                 linewidth=plot_linewidth,
-                alpha=0.9 # transparency
+                # alpha=0.9 # transparency
                 )
     ax.set_xlabel(x["label"], fontsize=label_fontsize)
     ax.set_ylabel(y["label"], fontsize=label_fontsize)
     ax.tick_params(axis='x', labelsize=label_fontsize)
     ax.tick_params(axis='y', labelsize=label_fontsize)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right") 
-    # ax.yaxis.offsetText.set_fontsize(label_fontsize)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center") 
+    ax.yaxis.offsetText.set_fontsize(label_fontsize)
+    if "title" in kwargs: ax.set_title(kwargs["title"], y=1.15, pad=-10, fontsize=label_fontsize)
     if y["log"]: ax.set_yscale('log',base=y["log"])
     if x["log"]: ax.set_xscale('log',base=x["log"])
     ax.grid(which='major', axis='x', linestyle=':', linewidth=0.4)
@@ -299,8 +299,7 @@ def plotMultiLineChart(x, y, path="", fig_dim=(1,1), fig_size=(2.5,2.5), **kwarg
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.4)
     ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.4)
     plt.tight_layout()
-    # plt.legend(bbox_to_anchor= (0, 1.05), loc='lower left', ncol=6, fontsize=12)
-    plt.legend(fontsize=legend_fontsize, ncol=1)
+    plt.legend(bbox_to_anchor=kwargs["bbox_to_anchor"], loc='lower left', ncol=1, fontsize=legend_fontsize)
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()
     plt.close()

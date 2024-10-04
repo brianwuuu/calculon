@@ -29,6 +29,9 @@ def writeStringToFile(filename, string):
         
 def cartesianProduct(param_list):
     return [x for x in itertools.product(*param_list)]
+
+def zipConfigs(config_list):
+    return list(itertools.zip_longest(*config_list))
         
 def generateSystemFileNameString(sys_config):
     compute_str = "{}tflops_".format(sys_config["matrix"]["float16"]["tflops"])
@@ -67,7 +70,7 @@ def generateBashScript(exec_dir, config_file_list, exp_name=""):
     str_builder = "cd $CALCULON_HOME\n\n"
     str_builder += "export PYTHONPATH=.\n\n"
     exec_prefix = "./bin/calculon llm"
-    exec_file_name = "automated_execution.sh"
+    exec_file_name = "automated_execution.sh" if exp_name == "" else f"automated_execution_{exp_name}.sh"
     # Write the script to the .sh file
     for config_file in config_file_list:
         assert(len(config_file) == 3), "[Error] Must have 3 file inputs, now have {}".format(len(config_file))
@@ -90,3 +93,23 @@ def generateExecutionScript(exec_dir, exp_name="", bash_script_names=[]):
     print("[Setup] Generate nohup script to {}".format(exec_dir+"/"+file_name))
     st = os.stat(exec_dir + "/" + file_name)
     os.chmod(exec_dir + "/" + file_name, st.st_mode | stat.S_IEXEC)
+    
+def get_par_params(num_gpu : int):
+    """ Try to map to multiple of 4 and power of 2
+    TP, PP, DP
+    """
+    assert(num_gpu & (num_gpu-1) == 0), f"[Error] Num GPU ({num_gpu}) is not a power of 2"
+    # Step 1: Find the exponent `e` such that x = 2^e
+    e = num_gpu.bit_length() - 1  # This gives the exponent `e` since x is a power of 2
+
+    # Step 2: Divide `e` as evenly as possible into three parts (a, b, c)
+    a = e // 3
+    b = (e // 3) + (1 if (e % 3) > 0 else 0)  # Distribute remainder to b
+    c = e - (a + b)  # This will ensure the sum of a + b + c = e
+
+    # Step 3: Return the three numbers 2^a, 2^b, and 2^c
+    num1 = 2**a
+    num2 = 2**b
+    num3 = 2**c
+    assert(num1 * num2 * num3 == num_gpu), f"[Error] Invalid parallelization: {num1}, {num2}, {num3}"
+    return num1, num2, num3
