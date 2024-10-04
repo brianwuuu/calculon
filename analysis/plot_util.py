@@ -133,14 +133,14 @@ def plotBarChart(x, y, path=""):
 
 def plotMultiColBarChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     print("[ANALYSIS] Plotting multi-column bar chart for " + y["label"] + " vs " + x["label"])
-    plt.style.use('ggplot')
+    # plt.style.use('ggplot')
     num_pairs = len(x["data"])
     ind = np.arange(num_pairs)
     width = 0.3
     fig, ax = plt.subplots(1, figsize=fig_size, dpi=200)
     for i, parameter in enumerate(y["data"].keys()):
         ax.bar(ind+i*width, y["data"][parameter], label=parameter, width=width)
-    ax.set_xticklabels(x["data"], fontsize=label_fontsize,  ha="right")
+    ax.set_xticklabels(x["data"], fontsize=label_fontsize, rotation=45, ha="right")
     x_ticks_loc = [coord + width for coord in range(len(x['data']))]
     ax.set_xticks(x_ticks_loc)
     ax.set_xlabel(x["label"], fontsize=label_fontsize)
