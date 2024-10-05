@@ -22,7 +22,7 @@ def get_workload_info(workload : str) -> float:
         },
         "gpt3-13B": {
             "ai": 497.19,
-            "size_GB": 200.905 
+            "size_GB": 215.72 
         },
         "gpt3-175B": {
             "ai": 924.698,

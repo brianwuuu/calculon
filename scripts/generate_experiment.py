@@ -43,19 +43,22 @@ def generate_sipam_experiment():
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100")
 
 def generate_simple_experiment():
-    model_params = [{'model': "GPT3-175B"}] # GPT3-175B: (12288,128,96)
+    model_params = [{'model': "gpt3-13B"}] # GPT3-175B: (12288,128,96)
     arch_params = [(1,1,1,1)]
-    mem_params, net_params = [], []
+    mem_params, net_params = [{}], [{}]
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", exp_name="simple")
         
 def generate_mem_net_experiment():
     gpu = "h100"
     workloads = [
-                 "megatron-126M", 
-                 "megatron-5B", 
-                 "megatron-22B", 
-                 "megatron-40B"
-                 ] # "megatron-126M", "megatron-5B", "megatron-22B", "megatron-40B", "gpt3-13B", "gpt3-175B"
+                #  "megatron-126M", 
+                #  "megatron-5B", 
+                #  "megatron-22B", 
+                #  "megatron-40B",
+                #  "megatron-1T",
+                 "gpt3-13B",
+                #  "gpt3-175B"
+                 ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
         
@@ -86,6 +89,6 @@ def generate_mem_net_experiment():
     
 
 if __name__ == "__main__":
-    # generate_simple_experiment()
+    generate_simple_experiment()
     # generate_sipam_experiment()
-    generate_mem_net_experiment()
+    # generate_mem_net_experiment()

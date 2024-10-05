@@ -2041,8 +2041,6 @@ class Llm:
     self._compute_block_stats()
     self._compute_batch_stats()
     req_mem_B = self.get_total_req_mem_cap()
-    print(req_mem_B)
-    
   
   def run(self, sys):
     assert self._compiled, "You must first call self.compile()"
@@ -2055,7 +2053,7 @@ class Llm:
     
     req_mem_B = self.get_total_req_mem_cap()
     mem_cap = self.sys.get_mem1_capacity() + self.sys.get_mem2_capacity()
-    print(req_mem_B, mem_cap)
+    print(f"Requires {req_mem_B} bytes, has {self.sys.get_mem1_capacity()} mem1, {self.sys.get_mem2_capacity()} mem2")
     assert(mem_cap >= req_mem_B), f"Requires {req_mem_B} bytes, only has {mem_cap} bytes"
     
     self._set_mem()

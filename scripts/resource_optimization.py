@@ -1,5 +1,5 @@
 import numpy as np
-import utilities
+import utilities, pprint
 from table import get_workload_info, get_cu_info, get_mem_info
 
 def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
@@ -37,11 +37,12 @@ def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
               net_bw_GBps=net_bw_GBps,
               par_params=par_params
               )
+    pprint.pprint(params, sort_dicts=False)
 
     mem_params = [{"mem1_GB": per_gpu_mem_cap_GB, 
                    "mem1_GBps": per_gpu_mem_bw_GBps, 
                    "mem1_ns": mem_info["lat_ns"], 
-                   "mem2_GB": per_gpu_mem_cap_GB, 
+                   "mem2_GB": 15000, 
                    "mem2_GBps": per_gpu_mem_bw_GBps, 
                    "mem2_ns": mem_info["lat_ns"]}]
     net_params = [{"net1_GBps": net_bw_GBps, 
@@ -56,18 +57,18 @@ def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
 def baseline_mem_net(gpu, workload, mem, datatype, **kwargs):
     workload_info = get_workload_info(workload)
     mem_info = get_mem_info(mem)
-    num_hbm_per_gpu = 5 # 5/6 working HBMs
-    mem_cap_GB = num_hbm_per_gpu * mem_info['cap_GB']
-    mem_bw_GBps = num_hbm_per_gpu * mem_info['bw_GBps']
-    num_gpu = int(np.ceil(workload_info["size_GB"] / mem_cap_GB))
+    num_mu_per_gpu = 5 # 5/6 working HBMs
+    mem_cap_per_gpu_GB = num_mu_per_gpu * mem_info['cap_GB']
+    mem_bw_per_gpu_GBps = num_mu_per_gpu * mem_info['bw_GBps']
+    num_gpu = int(np.ceil(workload_info["size_GB"] / mem_cap_per_gpu_GB))
     num_gpu = utilities.nearest_pow_of_2(num_gpu)
     par_params = utilities.get_par_params(num_gpu)
 
-    mem_params = [{"mem1_GB": mem_cap_GB, 
-                   "mem1_GBps": mem_bw_GBps, 
+    mem_params = [{"mem1_GB": mem_cap_per_gpu_GB, 
+                   "mem1_GBps": mem_bw_per_gpu_GBps, 
                    "mem1_ns": mem_info["lat_ns"], 
-                   "mem2_GB": mem_cap_GB, 
-                   "mem2_GBps": mem_bw_GBps, 
+                   "mem2_GB": 15000, 
+                   "mem2_GBps": mem_bw_per_gpu_GBps, 
                    "mem2_ns": mem_info["lat_ns"]}]
     net_params = [{}]
     model_params = [{'model':workload}]

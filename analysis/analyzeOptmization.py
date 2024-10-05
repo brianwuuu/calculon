@@ -37,8 +37,11 @@ def analyzeIterTime():
                  "megatron-126M", 
                  "megatron-5B", 
                  "megatron-22B", 
-                 "megatron-40B"
-                 ] # "megatron-126M", "megatron-5B", "megatron-22B", "megatron-40B", "gpt3-13B", "gpt3-175B"
+                 "megatron-40B",
+                 "megatron-1T",
+                 "gpt3-13B",
+                 "gpt3-175B"
+                 ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
         
@@ -79,8 +82,11 @@ def analyzeEfficency():
                  "megatron-126M", 
                  "megatron-5B", 
                  "megatron-22B", 
-                 "megatron-40B"
-                 ] # "megatron-126M", "megatron-5B", "megatron-22B", "megatron-40B", "gpt3-13B", "gpt3-175B"
+                 "megatron-40B",
+                 "megatron-1T",
+                 "gpt3-13B",
+                 "gpt3-175B"
+                 ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
         
@@ -116,14 +122,17 @@ def analyzeEfficency():
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2.2,2), bbox_to_anchor=(0.4,0.5))
 
 
-def analyzeMemoryUsage():
+def analyzeEfficiency():
     gpu = "h100"
     workloads = [
                  "megatron-126M", 
                  "megatron-5B", 
                  "megatron-22B", 
-                 "megatron-40B"
-                 ] # "megatron-126M", "megatron-5B", "megatron-22B", "megatron-40B", "gpt3-13B", "gpt3-175B"
+                 "megatron-40B",
+                 "megatron-1T",
+                 "gpt3-13B",
+                 "gpt3-175B"
+                 ] 
     mems = ["HBM2E"]
     datatypes = ["float16"]
         
