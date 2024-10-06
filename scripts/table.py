@@ -25,7 +25,7 @@ def get_workload_info(workload : str) -> float:
             "size_GB": 215.72 
         },
         "gpt3-175B": {
-            "ai": 924.698,
+            "ai": 862.31,
             "size_GB": 2572 
         },
         "lamda": {

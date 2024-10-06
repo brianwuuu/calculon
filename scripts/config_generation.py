@@ -95,7 +95,7 @@ def generate_system_configs(gpu, mem_params, net_params):
         if "net2_ns" in net_param: new_system["networks"][1]["latency"] = net_param['net2_ns']
         if "net2_eff" in net_param: new_system["networks"][1]["efficiency"] = net_param['net2_eff']
         new_system["networks"][0]["size"] = 32768
-        new_system["processing_mode"] = "no_overlap" # roofline, no-overlap
+        new_system["processing_mode"] = "roofline" # roofline, no-overlap
         system_filename = utilities.generateSystemFileNameString(new_system)
         sys_config_file = SYSTEM_DIRECTORY + system_filename
         utilities.dumpJSON(sys_config_file, new_system)

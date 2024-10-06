@@ -1,6 +1,7 @@
 """
 File generating script for memory disaggregation experiments.
 """
+import sys, getopt
 import utilities
 from config_generation import setup_experiment
 from resource_optimization import optimize_mem_net, baseline_mem_net
@@ -57,12 +58,17 @@ def generate_mem_net_experiment():
                 #  "megatron-40B",
                 #  "megatron-1T",
                  "gpt3-13B",
-                #  "gpt3-175B"
+                #  "gpt3-175B",
+                #  "lamda",
+                #  "anthropic-52B",
+                #  "chinchilla",
+                #  "palm-540B",
+                #  "turing-530B"
                  ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
         
-    total_length_mm = 96
+    total_length_mm = 120
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048]
     
@@ -89,6 +95,23 @@ def generate_mem_net_experiment():
     
 
 if __name__ == "__main__":
-    generate_simple_experiment()
-    # generate_sipam_experiment()
-    # generate_mem_net_experiment()
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"he:",["exp_id="])
+    except getopt.GetoptError:
+        print('[HELP] python3 generate_experiment.py -e <experiment_name>')
+        sys.exit(2)
+    exp_name = ""
+    for opt, arg in opts:
+        if opt == '-h':
+            print('python3 generate_experiment.py -e <experiment_name>')
+            sys.exit()
+        elif opt in ("-e"):
+            exp_name = str(arg)
+    if exp_name == "simple":
+        simulations_config_filenames = generate_simple_experiment()
+    elif exp_name == "sipam":
+        simulations_config_filenames = generate_sipam_experiment()
+    elif exp_name == "mem_net":
+        simulations_config_filenames = generate_mem_net_experiment()
+    else:
+        raise Exception("[Error] Invalid Experiment Number")

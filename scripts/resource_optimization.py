@@ -12,8 +12,14 @@ def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
     cu_info = get_cu_info(gpu, datatype)
     mem_info = get_mem_info(mem)
     
+    # ensures there's always some mem vs net distribution
+    max_num_mem_pic_per_gpu = total_length_mm // per_pic_length_mm - 1
+    min_num_mem_pic_per_gpu = 1
+    
     req_mem_bw_per_gpu_GBps = cu_info["matrix"] / workload_info["ai"] / 1e9
-    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / mem_info["bw_GBps"]))
+    num_req_mu_per_gpu = max(1, 
+                             min(max_num_mem_pic_per_gpu,
+                                 int(np.ceil(req_mem_bw_per_gpu_GBps / mem_info["bw_GBps"]))))
     per_gpu_mem_cap_GB = num_req_mu_per_gpu * mem_info["cap_GB"]
     per_gpu_mem_bw_GBps = num_req_mu_per_gpu * mem_info["bw_GBps"]
     num_gpu = int(np.ceil(workload_info["size_GB"] / per_gpu_mem_cap_GB))
@@ -25,6 +31,7 @@ def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
     net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
     
     params = dict(
+              workload=workload,
               num_gpu=num_gpu,
               arithmetic_intensity=workload_info["ai"],
               workload_size_GB=workload_info["size_GB"],

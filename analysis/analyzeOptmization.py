@@ -40,12 +40,17 @@ def analyzeIterTime():
                  "megatron-40B",
                  "megatron-1T",
                  "gpt3-13B",
-                 "gpt3-175B"
+                 "gpt3-175B",
+                #  "lamda",
+                #  "anthropic-52B",
+                #  "chinchilla",
+                #  "palm-540B",
+                #  "turing-530B"
                  ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
         
-    total_length_mm = 96
+    total_length_mm = 120
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048]
     
@@ -73,7 +78,7 @@ def analyzeIterTime():
 
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads, "log":None, "limit": None}
-    y_ = {"label": "Execution Time (s)", "data": job_stats, "log": None, "limit": None}
+    y_ = {"label": "Execution Time (s)", "data": job_stats, "log":10, "limit": None}
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2.2,2), bbox_to_anchor=(0.4,0.5))
 
 def analyzeEfficency():
