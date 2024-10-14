@@ -61,6 +61,9 @@ def generate_arch_configs(arch_params, **kwargs):
         new_arch["optimizer_offload"] = False
         # parallelization params
         new_arch["optimizer_sharding"] = True if data_par > 1 else False
+        if "worktype" in kwargs: 
+            new_arch["training"] = False if kwargs['worktype'] == "inference" else True
+        new_arch["activation_recompute"] = 'none' if new_arch["training"] == False else "full"
         arch_filename = utilities.generateArchFileNameString(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
         utilities.dumpJSON(arch_config_file, new_arch)
@@ -89,13 +92,13 @@ def generate_system_configs(gpu, mem_params, net_params):
         if "mem2_GBps" in mem_param: new_system["mem2"]["GBps"] = mem_param['mem2_GBps']
         if "mem2_ns" in mem_param: new_system["mem2"]["ns"] = mem_param['mem2_ns']
         if "net1_GBps" in net_param: new_system["networks"][0]["bandwidth"] = net_param['net1_GBps']
-        if "net1_ns" in net_param: new_system["networks"][0]["latency"] = net_param['net1_ns']
+        if "net1_ns" in net_param: new_system["networks"][0]["latency"] = net_param['net1_ns'] / 1e9
         if "net1_eff" in net_param: new_system["networks"][0]["efficiency"] = net_param['net1_eff']
         if "net2_GBps" in net_param: new_system["networks"][1]["bandwidth"] = net_param['net2_GBps']
-        if "net2_ns" in net_param: new_system["networks"][1]["latency"] = net_param['net2_ns']
+        if "net2_ns" in net_param: new_system["networks"][1]["latency"] = net_param['net2_ns'] / 1e9
         if "net2_eff" in net_param: new_system["networks"][1]["efficiency"] = net_param['net2_eff']
         new_system["networks"][0]["size"] = 32768
-        new_system["processing_mode"] = "roofline" # roofline, no-overlap
+        new_system["processing_mode"] = "no_overlap" # roofline, no_overlap
         system_filename = utilities.generateSystemFileNameString(new_system)
         sys_config_file = SYSTEM_DIRECTORY + system_filename
         utilities.dumpJSON(sys_config_file, new_system)
@@ -121,14 +124,14 @@ def setup_experiment(mem_params, net_params, model_params, arch_params, **kwargs
     exp_name = kwargs["exp_name"] if "exp_name" in kwargs else ""
     sys_config_files = generate_system_configs(gpu, mem_params, net_params)
     model_config_files = generate_model_configs(model_params)
-    arch_config_files = generate_arch_configs(arch_params)
+    arch_config_files = generate_arch_configs(arch_params, **kwargs)
     config_files = generate_output_files(model_config_files, arch_config_files, sys_config_files)
     bash_script = utilities.generateBashScript(EXECUTION_DIRECTORY, config_files, exp_name=exp_name)
     # utilities.generateExecutionScript(EXECUTION_DIRECTORY, bash_script_names)
 
-def get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params):
+def get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params, **kwargs):
     model_config_files = generate_model_configs(model_params)
-    arch_config_files = generate_arch_configs(arch_params)
+    arch_config_files = generate_arch_configs(arch_params, **kwargs)
     sys_config_files = generate_system_configs(gpu, mem_params, net_params)
     config_files = zip(model_config_files, arch_config_files, sys_config_files)
     return list(config_files)

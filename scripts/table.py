@@ -1,53 +1,108 @@
 def get_workload_info(workload : str) -> float:
+    
     table = {
         "megatron-126M": {
-            "ai": 58.74,
-            "size_GB": 4.248 
+            "training": {
+                "ai": 58.74,
+                "size_GB": 4.248
+            },
+            "inference": {
+                "ai": 41.634,
+                "size_GB": 1.68
+            }
+        },
+        "megatron-530M": {
+            "training": {
+                "ai": 136.65,
+                "size_GB": 9.59
+            },
+            "inference": {
+                "ai": 105.55,
+                "size_GB": 2.37
+            }
+        },
+        "megatron-1B": {
+            "training": {
+                "ai": 196.519,
+                "size_GB": 16.29
+            },
+            "inference": {
+                "ai": 163.182,
+                "size_GB": 3.306
+            }
         },
         "megatron-5B": {
-            "ai": 416.60,
-            "size_GB": 80.631  
+            "training": {
+                "ai": 416.60,
+                "size_GB": 80.631
+            },
+            "inference": {
+                "ai": 344.018,
+                "size_GB": 13.2
+            }
         },
         "megatron-22B": {
-            "ai": 486.66,
-            "size_GB": 341.986 
+            "training": {
+                "ai": 404.402,
+                "size_GB": 341.986
+            },
+            "inference": {
+                "ai": 386.66,
+                "size_GB": 50.166
+            }
         },
         "megatron-40B": {
-            "ai": 701.971,
-            "size_GB": 597.023 
-        },
-        "megatron-1T": {
-            "ai": 1492.673,
-            "size_GB": 14747 
-        },
-        "gpt3-13B": {
-            "ai": 497.19,
-            "size_GB": 215.72 
-        },
-        "gpt3-175B": {
-            "ai": 862.31,
-            "size_GB": 2572 
-        },
-        "lamda": {
-            "ai": 755.395,
-            "size_GB": 1536 
+            "training": {
+                "ai": 701.971, # 213.489,
+                "size_GB": 640 # 597.023
+            },
+            "inference": {
+                "ai": 636.488, # 136.489,
+                "size_GB": 80 # 74.420
+            }
         },
         "anthropic-52B": {
-            "ai": 351.32,
-            "size_GB": 975.531
+            "training": {
+                "ai": 351.32,
+                "size_GB": 975.531
+            },
+            "inference": {
+                "ai": 247.64,
+                "size_GB": 144.42
+            }
         },
-        "chinchilla": {
-            "ai": 701.971,
-            "size_GB": 985.039
+        "chinchilla-64B": {
+            "training": {
+                "ai": 701.971,
+                "size_GB": 985.039
+            },
+            "inference": {
+                "ai": 236.488,
+                "size_GB": 135.968
+            }
         },
-        "palm-540B": {
-            "ai": 1493.166,
-            "size_GB": 6276
+        "gpt3-175B": {
+            "training": {
+                "ai": 840.82,
+                "size_GB": 2427.9
+            },
+            "inference": {
+                "ai": 802.26,
+                "size_GB": 398.58
+            }
         },
-        "turing-530B": {
-            "ai": 1342.950,
-            "size_GB": 7760
-        }
+        "megatron-1T": {
+            "training": {
+                "ai": 1492.673,
+                "size_GB": 14747 
+            }
+        },
+        "gpt3-13B": {
+            "training": {
+                "ai": 497.19,
+                "size_GB": 215.72 
+            }
+        },
     }
     assert(workload in table), f"Workload {workload} not in table."
     return table[workload]
@@ -61,9 +116,14 @@ def get_mem_info(mem_type : str) -> dict:
     DDR5: https://en.wikipedia.org/wiki/DDR5_SDRAM
     """
     table = {
+        "HBM2": {
+            "bw_GBps": 307, 
+            "lat_ns": 106.7, # 106.7
+            "cap_GB": 8
+        },
         "HBM2E": { # H100 original
-            "bw_GBps": 614,
-            "lat_ns": 106.7,
+            "bw_GBps": 600, 
+            "lat_ns": 106.7, # 106.7
             "cap_GB": 16
         },
         "HBM3": {
@@ -88,7 +148,7 @@ def get_mem_info(mem_type : str) -> dict:
         },
         "CXL": {
             "bw_GBps": 128,
-            "lat_ns": 30+73.3,
+            "lat_ns": 73.3,
             "cap_GB": 512
         }
     }

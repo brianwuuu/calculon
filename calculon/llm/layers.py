@@ -117,21 +117,31 @@ class Layer:
       'optimizer': self.get_optimizer()
     }
   
-  def get_total_flops(self):
-    flops = {"matrix":0, "vector":0, "total":0}
+  def get_total_flops(self, training=True):
+    flops = {"matrix":0, "vector":0, "total":0, "all": []}
     flops["matrix"] += self.fw_flops
-    flops["matrix"] += self.agrad_flops
-    flops["matrix"] += self.wgrad_flops
-    flops["vector"] += self.get_optim_step_flops()
+    flops['all'].append(self.fw_flops)
+    if training: 
+      flops["matrix"] += self.agrad_flops
+      flops['all'].append(self.agrad_flops)
+      flops["matrix"] += self.wgrad_flops
+      flops['all'].append(self.wgrad_flops)
+      flops["vector"] += self.get_optim_step_flops()
+      flops['all'].append(self.get_optim_step_flops())
     flops["total"] += flops["matrix"] + flops["vector"]
     return flops
   
-  def get_total_mem_accessed(self):
-    mem_bytes = {"matrix":0, "vector":0, "total":0}
+  def get_total_mem_accessed(self, training=True):
+    mem_bytes = {"matrix":0, "vector":0, "total":0, "all": []}
     mem_bytes["matrix"] += self.get_fw_mem_accessed()
-    mem_bytes["matrix"] += self.get_agrad_mem_accessed()
-    mem_bytes["matrix"] += self.get_wgrad_mem_accessed()
-    mem_bytes["vector"] += self.get_optim_step_mem_accessed()
+    mem_bytes["all"].append(self.get_fw_mem_accessed())
+    if training: 
+      mem_bytes["matrix"] += self.get_agrad_mem_accessed()
+      mem_bytes["all"].append(self.get_agrad_mem_accessed())
+      mem_bytes["matrix"] += self.get_wgrad_mem_accessed()
+      mem_bytes["all"].append(self.get_wgrad_mem_accessed())
+      mem_bytes["vector"] += self.get_optim_step_mem_accessed()
+      mem_bytes["all"].append(self.get_optim_step_mem_accessed())
     mem_bytes["total"] += mem_bytes["matrix"] + mem_bytes["vector"]
     return mem_bytes
   
@@ -309,7 +319,7 @@ class Layer:
     return self.processing_time
 
   def use_matrix_engine(self):
-    return False
+    return True
 
   def get_comm_bytes(self, stage, baseblock=True):
     return 0
@@ -328,10 +338,11 @@ class Layer:
       flops = self.get_optim_step_flops()
     else:
       raise Exception(f'Bad compute stage : {stage}')
-    if self.use_matrix_engine() and stage != "optim":
-      throughput = self.sys.get_matrix_throughput(flops)
-    else:
-      throughput = self.sys.get_vector_throughput(flops)
+    # if self.use_matrix_engine() and stage != "optim":
+    #   throughput = self.sys.get_matrix_throughput(flops)
+    # else:
+    #   throughput = self.sys.get_vector_throughput(flops)
+    throughput = self.sys.get_matrix_throughput(flops)
     return flops / throughput
 
   def compute_mem_time(self, stage):
@@ -363,7 +374,7 @@ class Layer:
     for (tier, bytes) in mem_tier:
       mem_tput = self.sys.get_mem1_throughput(bytes) if tier == "mem1" else self.sys.get_mem2_throughput(bytes)
       mem_lat = self.sys.get_mem1_latency() if tier == "mem1" else self.sys.get_mem2_latency()
-      mem_time += mem_bytes / mem_tput + mem_lat
+      mem_time += bytes / mem_tput + mem_lat
       mem_bytes += bytes
     # assert(mem_bytes == mem), f"{mem_bytes}, {mem}"
     return mem_time
@@ -404,6 +415,7 @@ class Layer:
       self.compute_flops_time(stage),
       self.compute_mem_time_v2(stage, mem_tier)
     )
+    # print("flops" if self.compute_flops_time(stage) < self.compute_mem_time_v2(stage, mem_tier) else "mem")
     return self.processing_time
 
 # We can factor all layers peculiarities and layer-wise optimizations by
@@ -616,6 +628,51 @@ class LinearOverlapped(Layer):
     if stage == 'optim':
       return 0
 
+  def compute_processing_time_v2(self, stage, mem_tier=[("mem1",1e6)]):
+    flop_time = self.compute_flops_time(stage)
+    flop_time_slowed = flop_time / (1 - self.net.processor_usage)
+    mem_time = self.compute_mem_time_v2(stage, mem_tier)
+    net_time = self.compute_net_time(stage)
+    compute_time = self.sys.get_processing_time(flop_time, mem_time)
+    if net_time == 0:
+      time = compute_time
+      net_exposed_time = 0
+    else:
+      compute_time_slowed = self.sys.get_processing_time(
+        flop_time_slowed, mem_time)
+      # Tiled time computed as fraction of full time, to model high effective
+      # throughput when processing many consequitive tiles
+      flop_tile = flop_time / self.num_tiles
+      flop_tile_slowed = flop_time_slowed / self.num_tiles
+      net_tile = net_time / self.num_tiles
+      compute_tile = compute_time / self.num_tiles
+      compute_tile_slowed = compute_time_slowed / self.num_tiles
+      overlap_inflection = net_tile - flop_tile_slowed
+      # we have one exposed comm tile if tp_comm is not ring,
+      # one exposed compute tile, and
+      # (Proc - 1) overlapped tiles, where either compute or comm is exposed
+      if overlap_inflection > 0:
+        # Tcomm is larger than compute, excess is exposed
+        # compute time itself is the compute + mem
+        time = compute_tile + (self.num_tiles - 1) * compute_tile_slowed
+        net_exposed_time = (self.num_tiles - 1) * overlap_inflection
+      else:
+        # Tcomm is smaller than compute and hidden, but it contributes to
+        # compute slowdown due part of compute resources orchestrating comm
+        time = compute_tile + (self.num_tiles - 1) * compute_tile + (
+          self.num_tiles - 1) * net_tile * self.net.processor_usage
+        net_exposed_time = 0
+      if self.tp_overlap == 'pipe':
+        # If overlap type is pipe, we need to add an exposed comm tile
+        # with ring-based overlap, we have a special schedule for comm and avoid
+        # sending an extra tile we have in the beginning
+        net_exposed_time += net_tile
+        time += net_tile
+    self.processing_time = time
+    self.net_exposed_time = net_exposed_time
+    self._processed_flag = True
+    return self.processing_time
+  
   def compute_processing_time(self, stage):
     flop_time = self.compute_flops_time(stage)
     flop_time_slowed = flop_time / (1 - self.net.processor_usage)

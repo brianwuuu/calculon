@@ -17,7 +17,7 @@
 
 from calculon import *
 from .layers import *
-
+import numpy as np
 
 class Llm:
   """
@@ -611,10 +611,10 @@ class Llm:
       self.get_fw_offload_overhead(),
       self.get_bw_offload_overhead(),
       self.get_total_time(),
-      self.get_act_offload_bw_req(),
-      self.get_weight_offload_bw_req(),
-      self.get_optim_offload_bw_req(),
-      self.get_offload_mem_bw_req(),
+      # self.get_act_offload_bw_req(),
+      # self.get_weight_offload_bw_req(),
+      # self.get_optim_offload_bw_req(),
+      # self.get_offload_mem_bw_req(),
       self.get_mem_tier1_cap_req(),
       self.get_mem_tier2_cap_req(),
       self.get_useful_flops(),
@@ -2056,6 +2056,8 @@ class Llm:
     print(f"Requires {req_mem_B} bytes, has {self.sys.get_mem1_capacity()} mem1, {self.sys.get_mem2_capacity()} mem2")
     assert(mem_cap >= req_mem_B), f"Requires {req_mem_B} bytes, only has {mem_cap} bytes"
     
+    print("Finished pre-setting memory accessed bytes.")
+    
     self._set_mem()
     self._compute_block_stats()
     self._compute_batch_stats()
@@ -2327,10 +2329,10 @@ class Llm:
     mem_B = 0
     mem_B += self.get_weight_space()
     mem_B += self.get_act_space()
-    mem_B += self.get_act_checkpoint_size()
-    mem_B += self.get_weight_grad_space()
-    mem_B += self.get_optimizer_space()
-    mem_B += self.get_act_grad_space()
+    if self.exe.training: mem_B += self.get_act_checkpoint_size()
+    if self.exe.training: mem_B += self.get_weight_grad_space()
+    if self.exe.training: mem_B += self.get_optimizer_space()
+    if self.exe.training: mem_B += self.get_act_grad_space()
     return mem_B
   
   def _set_mem(self):
@@ -2506,19 +2508,24 @@ class Llm:
   def get_arithmetic_intensity(self):
     flops = {"matrix":0, "vector":0, "total":0}
     mem_bytes = {"matrix":0, "vector":0, "total":0}
+    ai = {"all": []}
     for layer in self._llm_block:
-      l_flops = layer.get_total_flops()
-      l_mem_bytes = layer.get_total_mem_accessed()
+      l_flops = layer.get_total_flops(training=self.exe.training)
+      l_mem_bytes = layer.get_total_mem_accessed(training=self.exe.training)
       flops["matrix"] += l_flops["matrix"]
       flops["vector"] += l_flops["vector"]
       flops["total"] += l_flops["total"]
       mem_bytes["matrix"] += l_mem_bytes["matrix"]
       mem_bytes["vector"] += l_mem_bytes["vector"]
       mem_bytes["total"] += l_mem_bytes["total"]
-    ai = {}
+      # ai['min'] = min(ai['min'], min([flops/mem_bytes if mem_bytes > 0 else float('inf') for flops, mem_bytes in zip(l_flops['all'], l_mem_bytes['all'])]))
+      ai['all'].extend([flops/mem_bytes if mem_bytes > 0 else np.nan for flops, mem_bytes in zip(l_flops['all'], l_mem_bytes['all'])])
     ai["matrix"] = flops["matrix"] / mem_bytes["matrix"]
-    ai["vector"] = flops["vector"] / mem_bytes["vector"]
+    if self.exe.training: ai["vector"] = flops["vector"] / mem_bytes["vector"]
     ai["total"] = flops["total"] / mem_bytes["total"]
+    ai["perc"] = np.percentile(ai["all"], 95)
+    ai["mean"] = np.nanmean(ai["all"])
+    ai["median"] = np.nanmedian(ai["all"])
     return ai
   
   def display_stats(self):
@@ -2556,25 +2563,25 @@ class Llm:
       f"Batch PP comm time on link: {self.get_pp_comm_link_time():.4f};\n" \
       f"Batch DP comm time on link: {self.get_dp_comm_link_time():.4f};\n" \
       f"Batch total time: {self.get_total_time():.4f};\n" \
-      f"Activation offload required BW: " \
-      f"{human_format(self.get_act_offload_bw_req(), 'bandwidth')};\n" \
-      f"Weight offload required BW: " \
-      f"{human_format(self.get_weight_offload_bw_req(), 'bandwidth')};\n" \
-      f"Optimizer offload required BW: " \
-      f"{human_format(self.get_optim_offload_bw_req(), 'bandwidth')};\n" \
-      f"Total offload required BW: " \
-      f"{human_format(self.get_offload_mem_bw_req(), 'bandwidth')};\n" \
       f"Mem tier1 capacity requirement: " \
       f"{human_format(self.get_mem_tier1_cap_req(), 'bytes')};\n" \
       f"Mem tier2 capacity requirement: " \
       f"{human_format(self.get_mem_tier2_cap_req(), 'bytes')};\n" \
-      f"Mem tier2 BW for offload: " \
-      f"{human_format(self.get_offload_mem_bw_req(), 'bandwidth')};\n" \
       f"Compute efficiency: {self.get_compute_efficiency()*100:.2f}%;\n" \
       f"System efficiency: {self.get_system_efficiency()*100:.2f}%;\n" \
       f"Total efficiency: {self.get_total_efficiency()*100:.2f}%;\n" \
       f"Sample rate: {self.get_sample_rate():.2f};\n" \
       f"Arithmetic Intensity: {self.get_arithmetic_intensity()};\n"
+      # f"Activation offload required BW: " \
+      # f"{human_format(self.get_act_offload_bw_req(), 'bandwidth')};\n" \
+      # f"Weight offload required BW: " \
+      # f"{human_format(self.get_weight_offload_bw_req(), 'bandwidth')};\n" \
+      # f"Optimizer offload required BW: " \
+      # f"{human_format(self.get_optim_offload_bw_req(), 'bandwidth')};\n" \
+      # f"Total offload required BW: " \
+      # f"{human_format(self.get_offload_mem_bw_req(), 'bandwidth')};\n" \
+      # f"Mem tier2 BW for offload: " \
+      # f"{human_format(self.get_offload_mem_bw_req(), 'bandwidth')};\n" \
     self.log.info(stats)
     
   def get_display_stats(self):
@@ -2606,15 +2613,15 @@ class Llm:
       "Batch PP comm time on link": self.get_pp_comm_link_time(),
       "Batch DP comm time on link": self.get_dp_comm_link_time(),
       "Batch total time": self.get_total_time(),
-      "Activation offload required BW": human_format(self.get_act_offload_bw_req(), 'bandwidth'),
-      "Weight offload required BW": human_format(self.get_weight_offload_bw_req(), 'bandwidth'),
-      "Optimizer offload required BW": human_format(self.get_optim_offload_bw_req(), 'bandwidth'),
-      "Total offload required BW": human_format(self.get_offload_mem_bw_req(), 'bandwidth'),
+      # "Activation offload required BW": human_format(self.get_act_offload_bw_req(), 'bandwidth'),
+      # "Weight offload required BW": human_format(self.get_weight_offload_bw_req(), 'bandwidth'),
+      # "Optimizer offload required BW": human_format(self.get_optim_offload_bw_req(), 'bandwidth'),
+      # "Total offload required BW": human_format(self.get_offload_mem_bw_req(), 'bandwidth'),
       "Mem tier1 capacity requirement": human_format(self.get_mem_tier1_cap_req(), 'bytes'),
       "Mem tier2 capacity requirement": human_format(self.get_mem_tier2_cap_req(), 'bytes'),
       "Mem tier1 capacity used": human_format(self.get_mem_tier1_cap_used(), 'bytes'),
       "Mem tier2 capacity used": human_format(self.get_mem_tier2_cap_used(), 'bytes'),
-      "Mem tier2 BW for offload": human_format(self.get_offload_mem_bw_req(), 'bandwidth'),
+      # "Mem tier2 BW for offload": human_format(self.get_offload_mem_bw_req(), 'bandwidth'),
       "Compute efficiency": self.get_compute_efficiency()*100,
       "System efficiency": self.get_system_efficiency()*100,
       "Total efficiency": self.get_total_efficiency()*100,

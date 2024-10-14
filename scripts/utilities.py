@@ -48,13 +48,15 @@ def generateSystemFileNameString(sys_config):
     return system_filename
 
 def generateArchFileNameString(arch_config):
-    str_builder = "{}_t{}_p{}_d{}_mbs{}{}{}{}_full".format(
+    str_builder = "{}_t{}_p{}_d{}_mbs{}{}{}{}_{}{}".format(
         arch_config["num_procs"],
         arch_config["tensor_par"], arch_config["pipeline_par"], arch_config["data_par"],
         arch_config["microbatch_size"],
         "_wo" if arch_config["weight_offload"] == True else "",
         "_ao" if arch_config["activations_offload"] == True else "",
-        "_oo" if arch_config["optimizer_offload"] == True else ""
+        "_oo" if arch_config["optimizer_offload"] == True else "",
+        "training" if arch_config["training"] else "inference",
+        "_" + arch_config["activation_recompute"] if arch_config["activation_recompute"] != 'none' else ""
     )
     return str_builder
 
@@ -107,6 +109,8 @@ def get_par_params(num_gpu : int):
     b = (e // 3) + (1 if (e % 3) > 0 else 0)  # Distribute remainder to b
     c = e - (a + b)  # This will ensure the sum of a + b + c = e
 
+    a, b, c = a, b, c
+    
     # Step 3: Return the three numbers 2^a, 2^b, and 2^c
     num1 = 2**a
     num2 = 2**b

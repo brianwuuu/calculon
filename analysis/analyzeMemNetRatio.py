@@ -157,7 +157,7 @@ def analyzeMemNetRatio():
     per_pic_length_mm = 8
     
     # hbm
-    num_local_hbm = 2 # 0, 1, 2, 4
+    num_local_hbm = 0 # 0, 1, 2, 4
     per_hbm_capacity_GB = 16
     per_hbm_bws_GBps = [300, 600, 1000, 2000] # 300, 600, 1000, 2000
     job_stats = defaultdict(list)
@@ -192,9 +192,9 @@ def analyzeMemNetRatio():
         
             # offloading
             new_arch = copy.deepcopy(arch_base)
-            new_arch["weight_offload"] = True
-            new_arch["activations_offload"] = True
-            new_arch["optimizer_offload"] = True
+            new_arch["weight_offload"] = False
+            new_arch["activations_offload"] = False
+            new_arch["optimizer_offload"] = False
             arch_filename = util.generateArchFileNameString(new_arch)
             output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
             assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
@@ -203,9 +203,9 @@ def analyzeMemNetRatio():
     pprint.pprint(job_stats)
     mem_to_net_str = [f"{x[0]}:{x[1]}" for x in mem_to_net_split]
     x_ = {"label": "Memory-Network Ratio", "data": mem_to_net_str, "log": None, "limit": None}
-    y_ = {"label": "Execution Time (s)", "data": job_stats, "log": None, "limit": None}
+    y_ = {"label": "Execution Time (s)", "data": job_stats, "log": None, "limit": (3.5,16)}
     # plot_util.plotMultiColStackedBarChart(x = x_, y = y_, path = "")
-    plot_util.plotMultiLineChart(x = x_, y = y_, path = "")
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(2.2,1.8), bbox_to_anchor=(0,1), ncol=4)
     
 def analyzeMemUsed():
     # physical dimensions

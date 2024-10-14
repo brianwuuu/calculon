@@ -15,7 +15,7 @@ import matplotlib.colors as mcolors
 import matplotlib.ticker as ticker
 
 mpl.rcParams['font.family'] = "serif"
-mpl.rcParams['hatch.linewidth'] = 0.5
+mpl.rcParams['hatch.linewidth'] = 0.2
 mpl.use('tkagg')
 
 color_cycle = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'] # ['darkcyan', 'lime', 'darkred','deeppink', 'blueviolet',  "silver", 'black']
@@ -131,19 +131,57 @@ def plotBarChart(x, y, path=""):
     else: plt.show()
     plt.close()
 
+def plotBarSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs):
+    print("[ANALYSIS] Plotting bar subchart for " + y["label"] + " vs " + x["label"])
+    # plt.style.use('ggplot')
+    fig, axes = plt.subplots(fig_dim[0], fig_dim[1], figsize=fig_size,dpi=200)
+    axes = axes.ravel() if not (fig_dim[0] == 1 and fig_dim[1] == 1) else axes
+    for index, param in enumerate(y["data"].keys()):
+        ax = axes[index] if not (fig_dim[0] == 1 and fig_dim[1] == 1) else axes
+        for i, (label, data) in enumerate(y["data"][param].items()):
+            ax.bar(x['data'], data, label=label,
+                   width = 0.3,
+                   edgecolor="black")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center")
+        ax.set_xlabel(x["label"], fontsize=label_fontsize)
+        ax.set_ylabel(y["label"], fontsize=label_fontsize)
+        ax.tick_params(axis='x', labelsize=label_fontsize)
+        ax.tick_params(axis='y', labelsize=label_fontsize)
+        ax.set_title(param, fontsize=label_fontsize)
+        ax.yaxis.offsetText.set_fontsize(label_fontsize)
+        if "log" in y.keys() and y["log"]: ax.set_yscale('log',base=y["log"])
+        if "log" in x.keys() and x["log"]: ax.set_xscale('log',base=x["log"])
+        if "limit" in y.keys() and y["limit"]: ax.set_ylim(*y['limit'])
+        if "limit" in x.keys() and x["limit"]: ax.set_xlim(*x['limit'])
+        if "sci" in y.keys() and y["sci"]: ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        if "sci" in x.keys() and x["sci"]: ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax.grid(which='major', axis='x', linestyle=':', linewidth=0.1)
+        ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.1)
+        ax.grid(which='major', axis='y', linestyle='--',linewidth=0.1)
+        ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.1)
+    plt.tight_layout()
+    plt.legend(bbox_to_anchor=kwargs['bbox_to_anchor'],loc="lower left", ncol=1, fontsize=legend_fontsize)
+    if path: plt.savefig(path, dpi=200, transparent=True)
+    else: plt.show()
+    plt.close()
+
 def plotMultiColBarChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     print("[ANALYSIS] Plotting multi-column bar chart for " + y["label"] + " vs " + x["label"])
     # plt.style.use('ggplot')
     num_pairs = len(x["data"])
     ind = np.arange(num_pairs)
-    width = 0.3
+    width = 0.4
     fig, ax = plt.subplots(1, figsize=fig_size, dpi=200)
     for i, parameter in enumerate(y["data"].keys()):
-        ax.bar(ind+i*width, y["data"][parameter], label=parameter, width=width)
-    ax.set_xticklabels(x["data"], fontsize=label_fontsize, rotation=45, ha="right")
-    x_ticks_loc = [coord + width for coord in range(len(x['data']))]
+        ax.bar(ind+i*width, y["data"][parameter], 
+               label=parameter, width=width, 
+               hatch=bar_hatches[i],
+            #    edgecolor='black'
+               )
+    x_ticks_loc = [coord + width/2 for coord in range(len(x['data']))]
     ax.set_xticks(x_ticks_loc)
-    ax.set_xlabel(x["label"], fontsize=label_fontsize)
+    ax.set_xticklabels(x["data"], fontsize=label_fontsize, rotation=0, ha="center")
+    # ax.set_xlabel(x["label"], fontsize=label_fontsize)
     ax.set_ylabel(y["label"], fontsize=label_fontsize)
     if 'title' in kwargs: ax.set_title(kwargs['title'], y=1.15, pad=-10, fontsize=label_fontsize)
     ax.yaxis.offsetText.set_fontsize(label_fontsize)
@@ -159,37 +197,50 @@ def plotMultiColBarChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.2)
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.2)
     ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.2)
+    plt.legend(bbox_to_anchor=kwargs['bbox_to_anchor'], loc='lower left', fontsize=legend_fontsize, ncol=kwargs['ncol'])
     plt.tight_layout()
-    plt.legend(bbox_to_anchor=kwargs['bbox_to_anchor'], loc='lower left', fontsize=legend_fontsize, ncol=1)
     if path: plt.savefig(path, dpi=200, transparent=False, bbox_inches='tight')
     else: plt.show()
     plt.close()
 
-def plotMultiColStackedBarChart(x, y, log=False, path=""):
-    print("[ANALYSIS] Plotting multi-stacked bar chart for " + y["label"] + " vs " + x["label"])
-    fig, ax = plt.subplots(1, figsize=(3.5,2.3),dpi=200)
-    bottom = np.zeros(len(x["data"]))
-    for i, (label, data) in enumerate(y["data"].items()):
-        ax.bar(x["data"], data, width=0.4, label=label, bottom=bottom)
-        bottom += data
-    if y["log"]: ax.set_yscale('log',base=y["log"])
-    if x["log"]: ax.set_xscale('log',base=x["log"])
-    ax.grid(which='major', axis='x', linestyle=':', linewidth=0.3)
-    ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.3)
-    ax.grid(which='major', axis='y', linestyle='--',linewidth=0.3)
-    ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.3)
-    # ax.set_xlabel(x["label"], fontsize=label_fontsize)
-    ax.set_ylabel(y["label"], fontsize=label_fontsize)
-    ax.tick_params(axis='x', labelsize=label_fontsize)
-    ax.tick_params(axis='y', labelsize=label_fontsize)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right") # , rotation=45, ha="right"
-    ax.grid(axis='y', linestyle='--')
-    plt.legend(bbox_to_anchor= (0.35, 0.45),loc="lower left", ncol=2, fontsize=legend_fontsize)
+def plotMultiColBarSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs):
+    print("[ANALYSIS] Plotting multi-stacked bar chart for " + y['label']['CU'] + " vs " + x["label"])
+    fig, axes = plt.subplots(fig_dim[0], fig_dim[1], figsize=fig_size,dpi=200)
+    axes = axes.ravel() if not (fig_dim[0] == 1 and fig_dim[1] == 1) else axes
+    for index, param in enumerate(y["data"].keys()):
+        ax = axes[index] if not (fig_dim[0] == 1 and fig_dim[1] == 1) else axes
+        width = 0.3
+        ind = np.arange(len(x['data'][param]))
+        for i, (label, data) in enumerate(y['data'][param].items()):
+            label_str = f"{label}"
+            ax.bar(ind+i*width, data, label=label_str, width=width, linewidth=0.3,
+                    color=mcolor_cycle[i],
+                    edgecolor="black", hatch=bar_hatches[i%len(y["data"][param])])
+        ax.set_xticklabels(x["data"][param], fontsize=label_fontsize,  ha="center")
+        x_ticks_loc = [x + width for x in range(len(x['data'][param]))] # [0.3, 1.3, 2.3, 3.3, 4.3, 5.3]
+        ax.set_xticks(x_ticks_loc)
+        # ax.set_xlabel(x["label"], fontsize=label_fontsize)
+        ax.set_ylabel(y["label"][param], fontsize=label_fontsize)
+        ax.tick_params(axis='x', labelsize=label_fontsize)
+        ax.tick_params(axis='y', labelsize=label_fontsize)
+        # ax.set_title(param, y=0.6, fontsize=label_fontsize)
+        ax.yaxis.offsetText.set_fontsize(label_fontsize)
+        if "log" in y.keys() and y["log"]: ax.set_yscale('log',base=y["log"])
+        if "log" in x.keys() and x["log"]: ax.set_xscale('log',base=x["log"])
+        if "limit" in y.keys() and y["limit"]: ax.set_ylim(*y['limit'])
+        if "limit" in x.keys() and x["limit"]: ax.set_xlim(*x['limit'])
+        if "sci" in y.keys() and y["sci"]: ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        if "sci" in x.keys() and x["sci"]: ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax.grid(which='major', axis='x', linestyle=':', linewidth=0.1)
+        ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.1)
+        ax.grid(which='major', axis='y', linestyle='--',linewidth=0.1)
+        ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.1)
     plt.tight_layout()
+    # plt.legend(bbox_to_anchor=kwargs['bbox_to_anchor'],loc="lower left", ncol=3, fontsize=legend_fontsize)
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()
     plt.close()
-
+ 
 def plotStackedBarSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs):
     print("[ANALYSIS] Plotting bar chart for " + y["label"] + " vs " + x["label"])
     plt.style.use('ggplot')
@@ -270,7 +321,7 @@ def plotMultiColStackedBarSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2
     plt.close()
 
 # Ploting function for multi-line chart 
-def plotMultiLineChart(x, y, path="", fig_dim=(1,1), fig_size=(2.5,2.5), **kwargs):
+def plotMultiLineChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     print("[ANALYSIS] Plotting multiline chart to " + path)
     # plt.style.use(['ggplot'])
     fig, ax = plt.subplots(1, figsize=fig_size, dpi=200)
@@ -285,21 +336,25 @@ def plotMultiLineChart(x, y, path="", fig_dim=(1,1), fig_size=(2.5,2.5), **kwarg
                 linewidth=plot_linewidth,
                 # alpha=0.9 # transparency
                 )
-    ax.set_xlabel(x["label"], fontsize=label_fontsize)
+    # ax.set_xlabel(x["label"], fontsize=label_fontsize)
     ax.set_ylabel(y["label"], fontsize=label_fontsize)
     ax.tick_params(axis='x', labelsize=label_fontsize)
     ax.tick_params(axis='y', labelsize=label_fontsize)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center") 
     ax.yaxis.offsetText.set_fontsize(label_fontsize)
     if "title" in kwargs: ax.set_title(kwargs["title"], y=1.15, pad=-10, fontsize=label_fontsize)
-    if y["log"]: ax.set_yscale('log',base=y["log"])
-    if x["log"]: ax.set_xscale('log',base=x["log"])
+    if 'log' in y.keys() and y["log"]: ax.set_yscale('log',base=y["log"])
+    if 'log' in x.keys() and x["log"]: ax.set_xscale('log',base=x["log"])
+    if "limit" in y.keys() and y["limit"]: ax.set_ylim(*y['limit'])
+    if "limit" in x.keys() and x["limit"]: ax.set_xlim(*x['limit'])
+    if "sci" in y.keys() and y["sci"]: ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    if "sci" in x.keys() and x["sci"]: ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     ax.grid(which='major', axis='x', linestyle=':', linewidth=0.4)
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.4)
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.4)
     ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.4)
+    plt.legend(bbox_to_anchor=kwargs["bbox_to_anchor"], loc='lower left', ncol=kwargs["ncol"], fontsize=legend_fontsize)
     plt.tight_layout()
-    plt.legend(bbox_to_anchor=kwargs["bbox_to_anchor"], loc='lower left', ncol=1, fontsize=legend_fontsize)
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()
     plt.close()
@@ -421,22 +476,24 @@ def plotMultiScatterSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), *
     plt.close()
 
 # Ploting function for multi-scatter chart 
-def plotMultiScatterChart(x, y, path=""):
-    print("[ANALYSIS] Plotting multiscatter chart to " + path)
+def plotMultiScatterChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
+    print("[ANALYSIS] Plotting multiline chart to " + path)
     # plt.style.use(['ggplot'])
-    fig, ax = plt.subplots(1, figsize=(2.5,2.5),dpi=200)
+    fig, ax = plt.subplots(1, figsize=fig_size, dpi=200)
     for i, param in enumerate(y["data"].keys()):
         ax.scatter(x["data"], y['data'][param], 
                 label=param, 
-                marker="o", #mark_cycle[i%4],  
-                color=next(ax._get_lines.prop_cycler)['color'], # line_color_cycle[i],
+                marker=mark_cycle[i%len(y['data'])], 
+                # facecolors="none",
+                # alpha=0.9 # transparency
                 )
-    ax.set_xlabel(x["label"], fontsize=label_fontsize)
+    # ax.set_xlabel(x["label"], fontsize=label_fontsize)
     ax.set_ylabel(y["label"], fontsize=label_fontsize)
     ax.tick_params(axis='x', labelsize=label_fontsize)
     ax.tick_params(axis='y', labelsize=label_fontsize)
-    ax.set_xticklabels(ax.get_xticklabels(), ) # rotation=45, ha="right"
-    # ax.yaxis.offsetText.set_fontsize(label_fontsize)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center") 
+    ax.yaxis.offsetText.set_fontsize(label_fontsize)
+    if "title" in kwargs: ax.set_title(kwargs["title"], y=1.15, pad=-10, fontsize=label_fontsize)
     if y["log"]: ax.set_yscale('log',base=y["log"])
     if x["log"]: ax.set_xscale('log',base=x["log"])
     ax.grid(which='major', axis='x', linestyle=':', linewidth=0.4)
@@ -444,8 +501,7 @@ def plotMultiScatterChart(x, y, path=""):
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.4)
     ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.4)
     plt.tight_layout()
-    # plt.legend(bbox_to_anchor= (0, 1.05), loc='lower left', ncol=6, fontsize=12)
-    plt.legend(fontsize=legend_fontsize, ncol=1)
+    plt.legend(bbox_to_anchor=kwargs["bbox_to_anchor"], loc='lower left', ncol=1, fontsize=legend_fontsize)
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()
     plt.close()

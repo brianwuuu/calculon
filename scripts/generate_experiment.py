@@ -26,6 +26,7 @@ def generate_sipam_experiment():
     num_local_hbms = [0] # 0,1,2,4,6
     per_hbm_bw_GBps = 500
     per_hbm_capacity_GB = 16
+    worktype = "training"
     
     mem_params, net_params = [], []
     for num_local_hbm in num_local_hbms:
@@ -41,57 +42,60 @@ def generate_sipam_experiment():
             mem_params.append((local_hbm_capacity_GB, local_hbm_bw_GBps, 1000, mem_ratio*per_pic_bw_GBps))
             net_params.append((net_ratio*per_pic_bw_GBps, 1e-5, 0.15, net_ratio*per_pic_bw_GBps, 1e-5, 0.15))
             assert((net_ratio + mem_ratio) * per_pic_bw_GBps == max_sip_bw_GBps)
-    setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100")
+    setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", worktype=worktype)
 
 def generate_simple_experiment():
-    model_params = [{'model': "gpt3-13B"}] # GPT3-175B: (12288,128,96)
+    model_params = [{'model': "megatron-40B"}] # GPT3-175B: (12288,128,96)
     arch_params = [(1,1,1,1)]
     mem_params, net_params = [{}], [{}]
-    setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", exp_name="simple")
+    worktype = "inference"
+    setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", exp_name="simple", worktype=worktype)
         
 def generate_mem_net_experiment():
     gpu = "h100"
     workloads = [
-                #  "megatron-126M", 
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
+                 "anthropic-52B",
+                 "chinchilla-64B",
+                 "gpt3-175B",
+                #  "gpt3-13B",
                 #  "megatron-1T",
-                 "gpt3-13B",
-                #  "gpt3-175B",
-                #  "lamda",
-                #  "anthropic-52B",
-                #  "chinchilla",
-                #  "palm-540B",
-                #  "turing-530B"
                  ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
+    worktype = "inference"
         
-    total_length_mm = 120
+    total_length_mm = 96
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [2048]
+    per_pic_bws_GBps = [337.5] # 2048, 337.5
     
     # optimized experiments
     mem_params, net_params, model_params, arch_params = [], [], [], []
     for per_pic_bw_GBps, workload, mem, datatype in utilities.cartesianProduct([per_pic_bws_GBps, workloads, mems, datatypes]):
-        args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, per_pic_bw_GBps=per_pic_bw_GBps)
+        args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, 
+                    per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype)
         mem_param, net_param, model_param, arch_param = optimize_mem_net(gpu, workload, mem, datatype, **args)
         mem_params.extend(mem_param)
         net_params.extend(net_param)
         model_params.extend(model_param)
         arch_params.extend(arch_param)
-    setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu)
+    setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu, worktype=worktype)
 
     # baseline experiments
     mem_params, net_params, model_params, arch_params = [], [], [], []
     for workload, mem, datatype in utilities.cartesianProduct([workloads, mems, datatypes]):
-        mem_param, net_param, model_param, arch_param = baseline_mem_net(gpu, workload, mem, datatype)
+        args = dict(worktype=worktype)
+        mem_param, net_param, model_param, arch_param = baseline_mem_net(gpu, workload, mem, datatype, **args)
         mem_params.extend(mem_param)
         net_params.extend(net_param)
         model_params.extend(model_param)
         arch_params.extend(arch_param)
-    setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu, exp_name="baseline") 
+    setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu, exp_name="baseline", worktype=worktype) 
     
 
 if __name__ == "__main__":
