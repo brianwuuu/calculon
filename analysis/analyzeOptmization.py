@@ -35,15 +35,15 @@ def get_config_str(configs : tuple):
 def analyzeIterTime():
     gpu = "h100"
     workloads = {
-        "Meg\n126M": "megatron-126M",
-        "Meg\n530M": "megatron-530M",
-        "Meg\n1B": "megatron-1B",
-        "Meg\n5B": "megatron-5B", 
-        "Meg\n22B": "megatron-22B", 
-        "Meg\n40B": "megatron-40B",
-        "Anth\n52B": "anthropic-52B",
-        "Chin\n64B": "chinchilla-64B",
-        "GPT3\n175B": "gpt3-175B",
+        "126M": "megatron-126M",
+        "530M": "megatron-530M",
+        "1B": "megatron-1B",
+        "5B": "megatron-5B", 
+        "22B": "megatron-22B", 
+        "40B": "megatron-40B",
+        "52B": "anthropic-52B",
+        "64B": "chinchilla-64B",
+        "175B": "gpt3-175B",
         # "GPT3\n13B": "gpt3-13B",
         # "Meg\n1T": "megatron-1T",
     }
@@ -80,13 +80,15 @@ def analyzeIterTime():
 
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
-    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":None, "limit": None}
-    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0.69,0.75), ncol=1)
+    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":None, "limit": (0,8)}
+    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)
 
 def analyzeEfficency():
     gpu = "h100"
     workloads = {
         "Meg\n126M": "megatron-126M",
+        "Meg\n530M": "megatron-530M",
+        "Meg\n1B": "megatron-1B",
         "Meg\n5B": "megatron-5B", 
         "Meg\n22B": "megatron-22B", 
         "Meg\n40B": "megatron-40B",
@@ -99,7 +101,7 @@ def analyzeEfficency():
         
     total_length_mm = 96
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [2048] # 2048, 337.5
+    per_pic_bws_GBps = [337.5] # 2048, 337.5
     worktype = "training"
     efftype = "Compute efficiency"
     
@@ -116,7 +118,7 @@ def analyzeEfficency():
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
                     exec_output = util.parseJSON(output_dir + system_filename)
                     # norm_eff = exec_output[efftype]
-                    job_stats["Optimized"].append(exec_output[efftype] / 1)
+                    job_stats["SiPAM"].append(exec_output[efftype] / 1)
 
                     mem_params, net_params, model_params, arch_params = baseline_mem_net(gpu, workload, mem, datatype, **args)
                     baseline_files = get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params, **args)
@@ -198,6 +200,8 @@ def analyzeResourceUsage():
     gpu = "h100"
     workloads = {
         "Meg\n126M": "megatron-126M",
+        "Meg\n530M": "megatron-530M",
+        "Meg\n1B": "megatron-1B",
         "Meg\n5B": "megatron-5B", 
         "Meg\n22B": "megatron-22B", 
         "Meg\n40B": "megatron-40B",
@@ -211,7 +215,7 @@ def analyzeResourceUsage():
         
     total_length_mm = 96
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [2048]
+    per_pic_bws_GBps = [337.5]
     
     job_stats = defaultdict(lambda: defaultdict(list))
     for workload in workloads.values():
@@ -225,9 +229,9 @@ def analyzeResourceUsage():
                     optim_per_gpu_mem_cap_GB = mem_params[0]["mem1_GB"]
                     optim_num_mu_per_gpu = optim_per_gpu_mem_cap_GB // mem_info['cap_GB']
                     optim_per_gpu_mem_bw_GBps = mem_params[0]["mem1_GBps"]
-                    job_stats["CU"]["Optimized"].append(optim_num_gpu)
+                    job_stats["CU"]["SiPAM"].append(optim_num_gpu)
                     # job_stats["MU"]["Optimized"].append(optim_num_mu_per_gpu)
-                    job_stats["BW"]["Optimized"].append(optim_per_gpu_mem_bw_GBps)
+                    job_stats["BW"]["SiPAM"].append(optim_per_gpu_mem_bw_GBps)
 
                     mem_params, net_params, model_params, arch_params = baseline_mem_net(gpu, workload, mem, datatype, **args)
                     base_num_gpu = arch_params[0][0]
@@ -250,21 +254,21 @@ def analyzeResourceUsage():
 def analyzeArithmeticIntensity():
     gpu = "h100"
     workloads = {
-        "Meg\n126M": "megatron-126M",
-        "Meg\n530M": "megatron-530M",
-        "Meg\n1B": "megatron-1B",
-        "Meg\n5B": "megatron-5B", 
-        "Meg\n22B": "megatron-22B", 
-        "Meg\n40B": "megatron-40B",
-        "Anth\n52B": "anthropic-52B",
-        "Chin\n64B": "chinchilla-64B",
-        "GPT3\n175B": "gpt3-175B",
+        "126M": "megatron-126M",
+        "530M": "megatron-530M",
+        "1B": "megatron-1B",
+        "5B": "megatron-5B", 
+        "22B": "megatron-22B", 
+        "40B": "megatron-40B",
+        "52B": "anthropic-52B",
+        "64B": "chinchilla-64B",
+        "175B": "gpt3-175B",
         # "GPT3\n13B": "gpt3-13B",
         # "Meg\n1T": "megatron-1T",
     }
     mems = ["HBM2E"]
     datatypes = ["float16"]
-    worktype = "inference"
+    worktype = "training"
         
     total_length_mm = 96
     per_pic_length_mm = 8
@@ -290,12 +294,12 @@ def analyzeArithmeticIntensity():
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
     y_ = {"label": "FLOPs/Byte", "data": job_stats, "log": None, "limit": (0, 1100)}
-    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0,0.65), ncol=1)
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,1.9), bbox_to_anchor=(0,0.65), ncol=1)
     # plot_util.plotMultiScatterChart(x=x_, y=y_, fig_size=(3.6,3.27), bbox_to_anchor=(0,0.5))
     
 if __name__ == '__main__':
     # analyzeIterTime()
     # analyzeEfficency()
     # analyzeResourceUsage()
-    analyzeGPUHour()
-    # analyzeArithmeticIntensity()
+    # analyzeGPUHour()
+    analyzeArithmeticIntensity()

@@ -54,21 +54,21 @@ def generate_simple_experiment():
 def generate_mem_net_experiment():
     gpu = "h100"
     workloads = [
-                 "megatron-126M",
-                 "megatron-530M",
-                 "megatron-1B",
-                 "megatron-5B", 
-                 "megatron-22B", 
-                 "megatron-40B",
-                 "anthropic-52B",
-                 "chinchilla-64B",
+                #  "megatron-126M",
+                #  "megatron-530M",
+                #  "megatron-1B",
+                #  "megatron-5B", 
+                #  "megatron-22B", 
+                #  "megatron-40B",
+                #  "anthropic-52B",
+                #  "chinchilla-64B",
                  "gpt3-175B",
                 #  "gpt3-13B",
                 #  "megatron-1T",
                  ]
     mems = ["HBM2E"]
     datatypes = ["float16"]
-    worktype = "inference"
+    worktype = "training"
         
     total_length_mm = 96
     per_pic_length_mm = 8
@@ -112,10 +112,10 @@ if __name__ == "__main__":
         elif opt in ("-e"):
             exp_name = str(arg)
     if exp_name == "simple":
-        simulations_config_filenames = generate_simple_experiment()
+        generate_simple_experiment()
     elif exp_name == "sipam":
-        simulations_config_filenames = generate_sipam_experiment()
+        generate_sipam_experiment()
     elif exp_name == "mem_net":
-        simulations_config_filenames = generate_mem_net_experiment()
+        generate_mem_net_experiment()
     else:
         raise Exception("[Error] Invalid Experiment Number")

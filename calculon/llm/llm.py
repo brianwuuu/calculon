@@ -2188,6 +2188,18 @@ class Llm:
     time += self.get_tp_comm_exposed_time()
     time += self.get_pp_comm_exposed_time()
     time += self.get_dp_comm_exposed_time()
+
+    # print(
+    #   self.get_fw_offload_overhead(),
+    #   self.get_bw_offload_overhead(),
+    #   self.get_recompute_time(),
+    #   self.get_recomm_exposed_time(),
+    #   self.get_bubble_time(),
+    #   self.get_tp_comm_exposed_time(),
+    #   self.get_pp_comm_exposed_time(),
+    #   self.get_dp_comm_exposed_time(),
+    # )
+    
     return time
 
   def get_useful_flops(self):
@@ -2210,6 +2222,8 @@ class Llm:
   def get_system_efficiency(self):
     compute_time = self.get_fw_time() + self.get_bw_time() + \
       self.get_optim_step_time()
+    print("\n\n\n\n")
+    print(compute_time, self.get_total_time())
     return compute_time / self.get_total_time()
 
   def get_total_efficiency(self):
