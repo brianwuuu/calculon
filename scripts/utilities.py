@@ -36,13 +36,13 @@ def zipConfigs(config_list):
 def generateSystemFileNameString(sys_config):
     compute_str = "{}tflops_".format(sys_config["matrix"]["float16"]["tflops"])
     compute_str += "rl_" if sys_config["processing_mode"] == "roofline" else ""
-    mem_str = "mem1_{}GBps_{}GB_mem2_{}GBps_{}GB_".format(
-        sys_config["mem1"]["GBps"], sys_config["mem1"]["GiB"],
-        sys_config["mem2"]["GBps"], sys_config["mem2"]["GiB"],
+    mem_str = "mem1_{}GBps_{}ns_{}GB_mem2_{}GBps_{}ns_{}GB_".format(
+        sys_config["mem1"]["GBps"], sys_config["mem1"]["ns"], sys_config["mem1"]["GiB"],
+        sys_config["mem2"]["GBps"], sys_config["mem2"]["ns"], sys_config["mem2"]["GiB"],
     )
-    network_str = "net1_{}GBps_{}s_{}pu_net2_{}GBps_{}s_{}pu".format(
-        sys_config["networks"][0]["bandwidth"], sys_config["networks"][0]["latency"], sys_config["networks"][0]["processor_usage"],
-        sys_config["networks"][1]["bandwidth"], sys_config["networks"][1]["latency"], sys_config["networks"][1]["processor_usage"]
+    network_str = "net1_{}GBps_{}ns_{}pu_net2_{}GBps_{}ns_{}pu".format(
+        sys_config["networks"][0]["bandwidth"], sys_config["networks"][0]["latency"]*1e9, sys_config["networks"][0]["processor_usage"],
+        sys_config["networks"][1]["bandwidth"], sys_config["networks"][1]["latency"]*1e9, sys_config["networks"][1]["processor_usage"]
     )
     system_filename = compute_str + mem_str + network_str + ".json"
     return system_filename

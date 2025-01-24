@@ -45,40 +45,43 @@ def generate_sipam_experiment():
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", worktype=worktype)
 
 def generate_simple_experiment():
-    model_params = [{'model': "megatron-40B"}] # GPT3-175B: (12288,128,96)
+    model_params = [{'model': "gpt3-13B"}] # GPT3-175B: (12288,128,96)
     arch_params = [(1,1,1,1)]
     mem_params, net_params = [{}], [{}]
     worktype = "inference"
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", exp_name="simple", worktype=worktype)
         
 def generate_mem_net_experiment():
-    gpu = "h100"
+    gpu = "b100"
     workloads = [
-                #  "megatron-126M",
-                #  "megatron-530M",
-                #  "megatron-1B",
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
-                #  "anthropic-52B",
-                #  "chinchilla-64B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
+                 "anthropic-52B",
+                 "chinchilla-64B",
                  "gpt3-175B",
-                #  "gpt3-13B",
-                #  "megatron-1T",
+                 "gpt3-13B",
+                 "megatron-1T",
                  ]
-    mems = ["HBM2E"]
+    mems = ["HBM3"]
     datatypes = ["float16"]
     worktype = "training"
         
     total_length_mm = 96
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [337.5] # 2048, 337.5
+    per_pic_bws_GBps = [25, 50, 100, 200, 400, 800, 1600] # 2048, 337.5 = 4050 / 12, 25, 50, 100, 200, 400, 800, 1600
+    mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
+    net_lats_ns = [20]
     
     # optimized experiments
     mem_params, net_params, model_params, arch_params = [], [], [], []
-    for per_pic_bw_GBps, workload, mem, datatype in utilities.cartesianProduct([per_pic_bws_GBps, workloads, mems, datatypes]):
+    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesianProduct(
+        [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns]):
         args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, 
-                    per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype)
+                    per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns)
         mem_param, net_param, model_param, arch_param = optimize_mem_net(gpu, workload, mem, datatype, **args)
         mem_params.extend(mem_param)
         net_params.extend(net_param)
@@ -118,4 +121,4 @@ if __name__ == "__main__":
     elif exp_name == "mem_net":
         generate_mem_net_experiment()
     else:
-        raise Exception("[Error] Invalid Experiment Number")
+        raise Exception("[Error] Invalid Experiment String")

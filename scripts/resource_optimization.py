@@ -7,6 +7,8 @@ def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
     total_length_mm = kwargs["total_length_mm"]
     per_pic_length_mm = kwargs["per_pic_length_mm"]
     per_pic_bw_GBps = kwargs["per_pic_bw_GBps"]
+    mem_add_lat_ns = kwargs["mem_add_lat_ns"]
+    net_lat_ns = kwargs["net_lat_ns"]
     
     workload_info = get_workload_info(workload)
     cu_info = get_cu_info(gpu, datatype)
@@ -63,15 +65,15 @@ def optimize_mem_net(gpu, workload, mem, datatype, **kwargs):
 
     mem_params = [{"mem1_GB": per_gpu_mem_cap_GB, 
                    "mem1_GBps": per_gpu_mem_bw_GBps, 
-                   "mem1_ns": mem_info["lat_ns"]+30*2, 
+                   "mem1_ns": mem_info["lat_ns"]+mem_add_lat_ns, #30*2, 
                    "mem2_GB": 15000, 
                    "mem2_GBps": per_gpu_mem_bw_GBps, 
-                   "mem2_ns": mem_info["lat_ns"]+30*2
+                   "mem2_ns": mem_info["lat_ns"]+mem_add_lat_ns, #30*2
                    }]
     net_params = [{"net1_GBps": net_bw_GBps, 
                    "net2_GBps": net_bw_GBps,
-                   "net1_ns": (mem_info["lat_ns"]+30) * 2,
-                   "net2_ns": (mem_info["lat_ns"]+30) * 2
+                   "net1_ns": net_lat_ns,
+                   "net2_ns": net_lat_ns
                    }]
     model_params = [{'model': workload}] # [(hidden, attn_size, num_blocks)]
     arch_params = [(num_gpu, par_params[0], par_params[1], par_params[2])] # [(workload, num_procs, tensor_par, pipe_par, data_par)]
