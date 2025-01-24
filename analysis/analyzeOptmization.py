@@ -53,7 +53,7 @@ def analyzeIterTime():
     total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [337.5] # 2048, 337.5
-    worktype = "inference"
+    worktype = "training"
     
     job_stats = defaultdict(list)
     for workload in workloads.values():
@@ -254,15 +254,15 @@ def analyzeResourceUsage():
 def analyzeArithmeticIntensity():
     gpu = "h100"
     workloads = {
-        "126M": "megatron-126M",
-        "530M": "megatron-530M",
-        "1B": "megatron-1B",
-        "5B": "megatron-5B", 
-        "22B": "megatron-22B", 
-        "40B": "megatron-40B",
-        "52B": "anthropic-52B",
-        "64B": "chinchilla-64B",
-        "175B": "gpt3-175B",
+        "Meg\n126M": "megatron-126M",
+        "Meg\n530M": "megatron-530M",
+        "Meg\n1B": "megatron-1B",
+        "Meg\n5B": "megatron-5B", 
+        "Meg\n22B": "megatron-22B", 
+        "Meg\n40B": "megatron-40B",
+        "ANth\n52B": "anthropic-52B",
+        "Chin\n64B": "chinchilla-64B",
+        "GPT3\n175B": "gpt3-175B",
         # "GPT3\n13B": "gpt3-13B",
         # "Meg\n1T": "megatron-1T",
     }
@@ -294,12 +294,12 @@ def analyzeArithmeticIntensity():
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
     y_ = {"label": "FLOPs/Byte", "data": job_stats, "log": None, "limit": (0, 1100)}
-    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,1.9), bbox_to_anchor=(0,0.65), ncol=1)
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0,0.65), ncol=1)
     # plot_util.plotMultiScatterChart(x=x_, y=y_, fig_size=(3.6,3.27), bbox_to_anchor=(0,0.5))
     
 if __name__ == '__main__':
-    # analyzeIterTime()
+    analyzeIterTime()
     # analyzeEfficency()
     # analyzeResourceUsage()
     # analyzeGPUHour()
-    analyzeArithmeticIntensity()
+    # analyzeArithmeticIntensity()
