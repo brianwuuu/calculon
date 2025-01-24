@@ -94,13 +94,21 @@ def get_workload_info(workload : str) -> float:
         "megatron-1T": {
             "training": {
                 "ai": 1492.673,
-                "size_GB": 14747 
+                "size_GB": 16214 
+            },
+            "inference": {
+                "ai": 1879.061,
+                "size_GB": 2032
             }
         },
         "gpt3-13B": {
             "training": {
                 "ai": 497.19,
                 "size_GB": 215.72 
+            },
+            "inference": {
+                "ai": 421.278,
+                "size_GB": 29.78
             }
         },
     }
