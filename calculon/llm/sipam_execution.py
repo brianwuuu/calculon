@@ -53,10 +53,16 @@ class SiPAMExecution(calculon.CommandLine):
   def run_command(logger, args):
     app = Llm.Application(calculon.io.read_json_file(args.application))
     syst = System(calculon.io.read_json_file(args.system))
-    exe = SiPAMExecution.get_init_exe(batch_size=, microbatch_size=, datatype=, worktype=)
+    exe = SiPAMExecution.get_init_exe(batch_size=3072, 
+                                      microbatch_size=4, 
+                                      datatype="float16",
+                                      worktype="training")
     
     model = Llm(app, logger)
     model.compile(syst, exe)
+    model.run(syst)
+    stats = model.get_stats_json(layers)
+    num_procs = ""
     
     params = []
     for tp in Llm.get_all_tensor_parallelisms(
