@@ -23,7 +23,7 @@ import psutil
 import os
 
 import calculon
-from calculon.util import pick, arg_true_false_all
+from calculon.util import pick
 from calculon.llm import *
 
 
@@ -53,7 +53,11 @@ class SiPAMExecution(calculon.CommandLine):
   def run_command(logger, args):
     app = Llm.Application(calculon.io.read_json_file(args.application))
     syst = System(calculon.io.read_json_file(args.system))
-
+    exe = SiPAMExecution.get_init_exe(batch_size=, microbatch_size=, datatype=, worktype=)
+    
+    model = Llm(app, logger)
+    model.compile(syst, exe)
+    
     params = []
     for tp in Llm.get_all_tensor_parallelisms(
         args.num_procs, app.hidden, app.attn_heads):
@@ -216,6 +220,35 @@ class SiPAMExecution(calculon.CommandLine):
       current.extend(candidate)
     current.sort(reverse=True, key=lambda x: x[0])
     return current[:quantity]
+  
+  @staticmethod
+  def get_init_exe(batch_size, microbatch_size, datatype, worktype):
+    exe_json = {
+                'num_procs': 1,
+                'tensor_par': 1,
+                'pipeline_par': 1,
+                'data_par': 1,
+                'tensor_par_net': 0,
+                'pipeline_par_net': 1,
+                'data_par_net': 1,
+                'batch_size': batch_size,
+                'microbatch_size': microbatch_size,
+                'datatype': datatype,
+                'fused_activation': True,
+                'attention_type': 'multihead',
+                'activation_recompute': "full",
+                'pipeline_interleaving': 1,
+                'optimizer_sharding': False,
+                'tensor_par_comm_type': "rs_ag",
+                'tensor_par_overlap': None,
+                'seq_par_ag_redo': False,
+                'data_par_overlap': False,
+                'weight_offload': False,
+                'activations_offload': False,
+                'optimizer_offload': False,
+                'training': worktype
+              }
+    return exe_json
 
 
 calculon.CommandLine.register(SiPAMExecution)
