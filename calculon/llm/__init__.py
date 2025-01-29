@@ -24,3 +24,4 @@ from .optimal_execution import OptimalExecution
 from .parameter_calculator import ParameterCalculator
 from .validation import Validation
 from .runner import Runner
+from .sipam_execution import SiPAMExecution
