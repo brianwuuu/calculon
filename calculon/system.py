@@ -59,11 +59,29 @@ class System:
     assert datatype in System.TypeSizes, f'Unsupported data type: {datatype}'
     self.datatype = datatype
 
+  def get_matrix_flops(self, datatype):
+    return self.matrix.flops(datatype)
+  
+  def get_vector_flops(self, datatype):
+    return self.vector.flops(datatype)
+
   def get_matrix_throughput(self, flops):
     return self.matrix.throughput(self.datatype, flops)
 
   def get_vector_throughput(self, flops):
     return self.vector.throughput(self.datatype, flops)
+
+  def get_mem1_bandwidth(self):
+    return self.mem1.bandwidth
+  
+  def get_mem2_bandwidth(self):
+    return self.mem2.bandwidth
+
+  def set_mem1_bandwidth(self, bw_GBps):
+    self.mem1.set_memory_bandwidth_GBps(bw_GBps)
+
+  def set_mem2_bandwidth(self, bw_GBps):
+    self.mem2.set_memory_bandwidth_GBps(bw_GBps)
 
   def get_mem1_throughput(self, size):
     return self.mem1.throughput(size)
@@ -82,6 +100,12 @@ class System:
   
   def get_mem2_capacity(self):
     return self.mem2.capacity
+  
+  def set_mem1_capacity(self, cap_GB):
+    self.mem1.set_memory_capacity_GB(cap_GB)
+
+  def set_mem2_capacity(self, cap_GB):
+    self.mem2.set_memory_capacity_GB(cap_GB)
 
   def compute_offload_time(self, size):
     return size / self.mem2.throughput(size)

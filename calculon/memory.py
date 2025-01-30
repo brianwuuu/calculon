@@ -39,6 +39,12 @@ class Memory:
   @property
   def bandwidth(self):
     return self._bandwidth
+  
+  def set_memory_bandwidth_GBps(self, bw_GBps):
+    self._bandwidth = bw_GBps * 1e9
+
+  def set_memory_capacity_GB(self, cap_GB):
+    self._capacity = cap_GB * 1024**3
 
   def efficiency(self, op_bytes):
     for bytes, eff in self._efficiency:
