@@ -121,7 +121,7 @@ class Llm:
       self.in_network_reduction = False
       assert self.tensor_par_comm_type in ['ar', 'p2p_rs_ag', 'rs_ag']
       self.tensor_par_overlap = tensor_par_overlap
-      assert self.tensor_par_overlap in ['none', 'ring', 'pipe']
+      assert(self.tensor_par_overlap in ['none', 'ring', 'pipe']), self.tensor_par_overlap
       if self.tensor_par_overlap != 'none':
         assert self.tensor_par > 1, "We perform TP comm overlap with TP > 1"
       self._sequence_par = self.tensor_par_comm_type == 'rs_ag'
@@ -506,10 +506,10 @@ class Llm:
       'fw_offload_exposed_time',
       'bw_offload_exposed_time',
       'total_time',
-      'act_offload_bw_req',
-      'weight_offload_bw_req',
-      'optim_offload_bw_req',
-      'offload_mem_bw_req',
+      # 'act_offload_bw_req',
+      # 'weight_offload_bw_req',
+      # 'optim_offload_bw_req',
+      # 'offload_mem_bw_req',
       'proc_mem_tier1_cap_req',
       'proc_mem_tier2_cap_req',
       'useful_flops',
@@ -2053,10 +2053,10 @@ class Llm:
     
     req_mem_B = self.get_total_req_mem_cap()
     mem_cap = self.sys.get_mem1_capacity() + self.sys.get_mem2_capacity()
-    print(f"Requires {req_mem_B} bytes, has {self.sys.get_mem1_capacity()} mem1, {self.sys.get_mem2_capacity()} mem2")
+    # print(f"Requires {req_mem_B} bytes, has {self.sys.get_mem1_capacity()} mem1, {self.sys.get_mem2_capacity()} mem2")
     assert(mem_cap >= req_mem_B), f"Requires {req_mem_B} bytes, only has {mem_cap} bytes"
     
-    print("Finished pre-setting memory accessed bytes.")
+    # print("Finished pre-setting memory accessed bytes.")
     
     self._set_mem()
     self._compute_block_stats()
@@ -2222,8 +2222,8 @@ class Llm:
   def get_system_efficiency(self):
     compute_time = self.get_fw_time() + self.get_bw_time() + \
       self.get_optim_step_time()
-    print("\n\n\n\n")
-    print(compute_time, self.get_total_time())
+    # print("\n\n\n\n")
+    # print(compute_time, self.get_total_time())
     return compute_time / self.get_total_time()
 
   def get_total_efficiency(self):
