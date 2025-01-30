@@ -23,6 +23,7 @@ import psutil
 import os
 
 import calculon
+from calculon.llm.llm import Llm
 from calculon.util import pick
 from calculon.llm import *
 
@@ -61,8 +62,11 @@ class SiPAMExecution(calculon.CommandLine):
     model = Llm(app, logger)
     model.compile(syst, exe)
     model.run(syst)
-    stats = model.get_stats_json(layers)
-    num_procs = ""
+    
+    ai = model.get_arithmetic_intensity()
+    
+    # TODO: need to use opt step to set up initial syst
+    num_procs = model.get_total_req_mem_cap() // (syst.get_mem1_capacity() + syst.get_mem2_capacity())
     
     params = []
     for tp in Llm.get_all_tensor_parallelisms(
@@ -74,9 +78,9 @@ class SiPAMExecution(calculon.CommandLine):
           batch_size = SiPAMExecution.get_batch_size(dp, args.max_batch_size)
           if batch_size is None:
             continue
-          for activation_recompute in ['full', 'attn_only', 'none']:
-            for optimizer_sharding in pick(dp>1, [True, False], [False]):
-              for tensor_par_comm_type in ['ar', 'p2p_rs_ag', 'rs_ag']:
+          for activation_recompute in ['full']:
+            for optimizer_sharding in [False]:
+              for tensor_par_comm_type in ['rs_ag']:
                 params.append(
                   (args.debug, args.top_n, args.layers, args.num_procs,
                    args.max_batch_size, args.datatype, app, syst, tp, pp, dp,
