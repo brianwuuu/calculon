@@ -15,18 +15,17 @@
  * limitations under the License.
 """
 
-import datetime
-import gzip
-import logging
-import multiprocessing as mp
+import sys, os
 import psutil
-import os
+import datetime
+import logging
+import numpy as np
+import multiprocessing as mp
 
 import calculon
 from calculon.llm.llm import Llm
 from calculon.util import pick
 from calculon.llm import *
-
 
 class SiPAMExecution(calculon.CommandLine):
   NAME = 'llm-sipam-execution'
@@ -40,8 +39,8 @@ class SiPAMExecution(calculon.CommandLine):
     sp.set_defaults(func=SiPAMExecution.run_command)
     sp.add_argument('application', type=str,
                     help='File path to application configuration')
-    sp.add_argument('num_procs', type=int,
-                    help='Number of processors in execution')
+    sp.add_argument('max_batch_size', type=int,
+                    help='Maximum batch size, will be largest multiple of DP')
     sp.add_argument('datatype', type=str, choices=System.supported_datatypes(),
                     help='The datatype to use')
     sp.add_argument('system', type=str,
@@ -52,45 +51,67 @@ class SiPAMExecution(calculon.CommandLine):
 
   @staticmethod
   def run_command(logger, args):
+    """
+      Input: 
+        app: original app
+        syst: flops for a single CU, memory bw + capacity of a single MU
+      Output:
+        update syst and exe at every step of the optimization
+    """
     app = Llm.Application(calculon.io.read_json_file(args.application))
     syst = System(calculon.io.read_json_file(args.system))
-    exe = SiPAMExecution.get_init_exe(batch_size=3072, 
+    exe_json = SiPAMExecution.get_init_exe(batch_size=3072, 
                                       microbatch_size=4, 
-                                      datatype="float16",
+                                      datatype=args.datatype,
                                       worktype="training")
-    
+    exe = Llm.Execution.from_json(exe_json)
+
     model = Llm(app, logger)
     model.compile(syst, exe)
     model.run(syst)
     
+    flops_matrix = syst.get_matrix_flops(args.datatype)
+    flops_vector = syst.get_vector_flops(args.datatype)
     ai = model.get_arithmetic_intensity()
+    ai_matrix = ai['matrix']
+    ai_vector = ai['vector']
     
-    # TODO: need to use opt step to set up initial syst
-    num_procs = model.get_total_req_mem_cap() // (syst.get_mem1_capacity() + syst.get_mem2_capacity())
+    # req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
+    req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
+
+    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
+    per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
+    per_gpu_mem_cap_GB = num_req_mu_per_gpu * syst.get_mem1_capacity() / (1024**3)
+
+    syst.set_mem1_bandwidth(per_gpu_mem_bw_GBps)
+    syst.set_mem1_capacity(per_gpu_mem_cap_GB)
     
+    num_procs = int(np.ceil(model.get_total_req_mem_cap() / (1024**3) / per_gpu_mem_cap_GB))
+    num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
+
+
     params = []
     for tp in Llm.get_all_tensor_parallelisms(
-        args.num_procs, app.hidden, app.attn_heads):
+        num_procs, app.hidden, app.attn_heads):
       for pp in Llm.get_all_pipeline_parallelisms(
-          args.num_procs, tp, app.num_blocks):
-        dp = Llm.get_data_parallelism(args.num_procs, tp, pp)
+          num_procs, tp, app.num_blocks):
+        dp = Llm.get_data_parallelism(num_procs, tp, pp)
         for ppint in Llm.get_valid_pipeline_interleavings(app.num_blocks, pp):
           batch_size = SiPAMExecution.get_batch_size(dp, args.max_batch_size)
-          if batch_size is None:
-            continue
+          if batch_size is None: continue
           for activation_recompute in ['full']:
             for optimizer_sharding in [False]:
               for tensor_par_comm_type in ['rs_ag']:
                 params.append(
-                  (args.debug, args.top_n, args.layers, args.num_procs,
+                  (False, 1, False, num_procs,
                    args.max_batch_size, args.datatype, app, syst, tp, pp, dp,
                    ppint, batch_size, activation_recompute, optimizer_sharding,
-                   tensor_par_comm_type, args.fused_activation, args.mbs_break,
-                   not args.no_tp_overlap, not args.no_dp_overlap))
-
+                   tensor_par_comm_type, [True], True,
+                   not True, not True))
+                
     # Runs parallel searches
     start_time = datetime.datetime.now()
-    with mp.Pool(args.cpus) as pool:
+    with mp.Pool(psutil.cpu_count(logical=False)) as pool:
       searches = pool.starmap(SiPAMExecution.search, params)
     end_time = datetime.datetime.now()
 
@@ -100,7 +121,7 @@ class SiPAMExecution(calculon.CommandLine):
     good_exe_count = 0
     bad_exe_count = 0
     for cbest, ec, gec, bec, tp, pp in searches:
-      best = SiPAMExecution.update_list(best, cbest, args.top_n)
+      best = SiPAMExecution.update_list(best, cbest, 3)
       exe_count += ec
       good_exe_count += gec
       bad_exe_count += bec
@@ -250,7 +271,7 @@ class SiPAMExecution(calculon.CommandLine):
                 'pipeline_interleaving': 1,
                 'optimizer_sharding': False,
                 'tensor_par_comm_type': "rs_ag",
-                'tensor_par_overlap': None,
+                'tensor_par_overlap': "none",
                 'seq_par_ag_redo': False,
                 'data_par_overlap': False,
                 'weight_offload': False,
@@ -260,5 +281,18 @@ class SiPAMExecution(calculon.CommandLine):
               }
     return exe_json
 
+  @staticmethod
+  def optimize(model, syst):
+    flops_matrix = syst.get_matrix_flops()
+    flops_vector = syst.get_vector_flops()
+    ai = model.get_arithmetic_intensity()
+    ai_matrix = ai['matrix']
+    ai_vector = ai['vector']
+
+    req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, 
+                                  flops_vector / ai_vector)
+
+    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / syst.get_mem1_bandwidth()))
+    
 
 calculon.CommandLine.register(SiPAMExecution)
