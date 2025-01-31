@@ -58,88 +58,96 @@ class SiPAMExecution(calculon.CommandLine):
       Output:
         update syst and exe at every step of the optimization
     """
+    ## Initial setup
     app = Llm.Application(calculon.io.read_json_file(args.application))
     syst = System(calculon.io.read_json_file(args.system))
-    exe_json = SiPAMExecution.get_init_exe(batch_size=3072, 
-                                      microbatch_size=4, 
-                                      datatype=args.datatype,
-                                      worktype="training")
-    exe = Llm.Execution.from_json(exe_json)
+    exe_json = SiPAMExecution.get_init_exe(batch_size=3072, microbatch_size=4, datatype=args.datatype, worktype="training")
 
-    model = Llm(app, logger)
-    model.compile(syst, exe)
-    model.run(syst)
+    iteration = 0
+    while iteration < 5:
+      exe = Llm.Execution.from_json(exe_json)
+      model = Llm(app, logger)
+      model.compile(syst, exe)
+      model.run(syst)
+      
+      flops_matrix = syst.get_matrix_flops(args.datatype)
+      flops_vector = syst.get_vector_flops(args.datatype)
+      ai = model.get_arithmetic_intensity()
+      ai_matrix = ai['matrix']
+      ai_vector = ai['vector']
+      
+      # req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
+      req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
+
+      num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
+      per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
+      per_gpu_mem_cap_GB = num_req_mu_per_gpu * syst.get_mem1_capacity() / (1024**3)
+
+      syst.set_mem1_bandwidth(per_gpu_mem_bw_GBps)
+      syst.set_mem1_capacity(per_gpu_mem_cap_GB)
+      
+      num_procs = int(np.ceil(model.get_total_req_mem_cap() / (1024**3) / per_gpu_mem_cap_GB))
+      num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
+
+      print(iteration, exe_json["tensor_par"], exe_json["pipeline_par"], exe_json["data_par"],
+            ai_matrix, per_gpu_mem_bw_GBps, num_procs)
+      print("\n")
+
+      params = []
+      for tp in Llm.get_all_tensor_parallelisms(
+          num_procs, app.hidden, app.attn_heads):
+        for pp in Llm.get_all_pipeline_parallelisms(
+            num_procs, tp, app.num_blocks):
+          dp = Llm.get_data_parallelism(num_procs, tp, pp)
+          for ppint in Llm.get_valid_pipeline_interleavings(app.num_blocks, pp):
+            batch_size = SiPAMExecution.get_batch_size(dp, args.max_batch_size)
+            if batch_size is None: continue
+            for activation_recompute in ['full']:
+              for optimizer_sharding in [False]:
+                for tensor_par_comm_type in ['rs_ag']:
+                  params.append(
+                    (False, 1, False, num_procs,
+                    args.max_batch_size, args.datatype, app, syst, tp, pp, dp,
+                    ppint, batch_size, activation_recompute, optimizer_sharding,
+                    tensor_par_comm_type, [True], True,
+                    not True, not True))
+                  
+      # Runs parallel searches
+      start_time = datetime.datetime.now()
+      with mp.Pool(psutil.cpu_count(logical=False)) as pool:
+        searches = pool.starmap(SiPAMExecution.search, params)
+      end_time = datetime.datetime.now()
+
+      # Combines parallel search result into one data structure
+      best = []
+      exe_count = 0
+      good_exe_count = 0
+      bad_exe_count = 0
+      for cbest, ec, gec, bec, tp, pp in searches:
+        best = SiPAMExecution.update_list(best, cbest, 1)
+        exe_count += ec
+        good_exe_count += gec
+        bad_exe_count += bec
+
+      logger.info(f'Total executions: {exe_count}')
+      logger.info(f'Good executions: {good_exe_count}')
+      logger.info(f'Bad executions: {bad_exe_count}')
+      calc_rate = exe_count / (end_time - start_time).total_seconds()
+      logger.info(f'Calculation rate: {calc_rate:.2f} calcs/sec')
+
+      output = {}
+      for index, run in enumerate(best):
+        _, execution, stats = run
+        output[index] = {
+          'execution': execution,
+          'stats': stats
+        }
+        
+      iteration += 1
+      exe_json = output[0]['execution']
     
-    flops_matrix = syst.get_matrix_flops(args.datatype)
-    flops_vector = syst.get_vector_flops(args.datatype)
-    ai = model.get_arithmetic_intensity()
-    ai_matrix = ai['matrix']
-    ai_vector = ai['vector']
-    
-    # req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
-    req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
-
-    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
-    per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
-    per_gpu_mem_cap_GB = num_req_mu_per_gpu * syst.get_mem1_capacity() / (1024**3)
-
-    syst.set_mem1_bandwidth(per_gpu_mem_bw_GBps)
-    syst.set_mem1_capacity(per_gpu_mem_cap_GB)
-    
-    num_procs = int(np.ceil(model.get_total_req_mem_cap() / (1024**3) / per_gpu_mem_cap_GB))
-    num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
-
-
-    params = []
-    for tp in Llm.get_all_tensor_parallelisms(
-        num_procs, app.hidden, app.attn_heads):
-      for pp in Llm.get_all_pipeline_parallelisms(
-          num_procs, tp, app.num_blocks):
-        dp = Llm.get_data_parallelism(num_procs, tp, pp)
-        for ppint in Llm.get_valid_pipeline_interleavings(app.num_blocks, pp):
-          batch_size = SiPAMExecution.get_batch_size(dp, args.max_batch_size)
-          if batch_size is None: continue
-          for activation_recompute in ['full']:
-            for optimizer_sharding in [False]:
-              for tensor_par_comm_type in ['rs_ag']:
-                params.append(
-                  (False, 1, False, num_procs,
-                   args.max_batch_size, args.datatype, app, syst, tp, pp, dp,
-                   ppint, batch_size, activation_recompute, optimizer_sharding,
-                   tensor_par_comm_type, [True], True,
-                   not True, not True))
-                
-    # Runs parallel searches
-    start_time = datetime.datetime.now()
-    with mp.Pool(psutil.cpu_count(logical=False)) as pool:
-      searches = pool.starmap(SiPAMExecution.search, params)
-    end_time = datetime.datetime.now()
-
-    # Combines parallel search result into one data structure
-    best = []
-    exe_count = 0
-    good_exe_count = 0
-    bad_exe_count = 0
-    for cbest, ec, gec, bec, tp, pp in searches:
-      best = SiPAMExecution.update_list(best, cbest, 3)
-      exe_count += ec
-      good_exe_count += gec
-      bad_exe_count += bec
-
-    logger.info(f'Total executions: {exe_count}')
-    logger.info(f'Good executions: {good_exe_count}')
-    logger.info(f'Bad executions: {bad_exe_count}')
-    calc_rate = exe_count / (end_time - start_time).total_seconds()
-    logger.info(f'Calculation rate: {calc_rate:.2f} calcs/sec')
-
-    output = {}
-    for index, run in enumerate(best):
-      _, execution, stats = run
-      output[index] = {
-        'execution': execution,
-        'stats': stats
-      }
-
+    sys.exit()
+    ## last step
     if calculon.io.is_json_extension(args.output):
       logger.info(f'Output: {args.output}')
       calculon.io.write_json_file(output, args.output)
@@ -147,7 +155,8 @@ class SiPAMExecution(calculon.CommandLine):
       assert False, f'Unknown file type: {args.output}'
 
     return 0
-
+  
+  
   @staticmethod
   def get_batch_size(data_par, max_batch_size):
     if data_par > max_batch_size:
@@ -171,7 +180,7 @@ class SiPAMExecution(calculon.CommandLine):
     good_exe_count = 0
     bad_exe_count = 0
 
-    has_mem2 = syst.mem2.capacity > 0
+    has_mem2 = False # syst.mem2.capacity > 0
 
     can_redo = Llm.can_redo_ag(tensor_par_comm_type,
                                activation_recompute)
@@ -233,8 +242,7 @@ class SiPAMExecution(calculon.CommandLine):
                               stats = model.get_stats_json(layers)
                               good_exe_count += 1
                               curr = (stats['sample_rate'], exe_json, stats)
-                              best = SiPAMExecution.update_list(best, curr,
-                                                                  top_n)
+                              best = SiPAMExecution.update_list(best, curr, top_n)
                             except Llm.Error as ex:
                               logger = logging.getLogger()
                               logger.debug(f'JSON:{exe_json}\nERROR:{ex}\n')
