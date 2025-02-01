@@ -43,6 +43,8 @@ class SiPAMExecution(calculon.CommandLine):
                     help='Maximum batch size, will be largest multiple of DP')
     sp.add_argument('datatype', type=str, choices=System.supported_datatypes(),
                     help='The datatype to use')
+    sp.add_argument('optim_iter', type=int, default=5,
+                    help='Number of iterations to run for optimization')
     sp.add_argument('system', type=str,
                     help='File path to system configuration')
     sp.add_argument('output', type=str,
@@ -64,7 +66,7 @@ class SiPAMExecution(calculon.CommandLine):
     exe_json = SiPAMExecution.get_init_exe(batch_size=3072, microbatch_size=4, datatype=args.datatype, worktype="training")
 
     iteration = 0
-    while iteration < 5:
+    while iteration < 10:
       exe = Llm.Execution.from_json(exe_json)
       model = Llm(app, logger)
       model.compile(syst, exe)
@@ -87,10 +89,11 @@ class SiPAMExecution(calculon.CommandLine):
       syst.set_mem1_capacity(per_gpu_mem_cap_GB)
       
       num_procs = int(np.ceil(model.get_total_req_mem_cap() / (1024**3) / per_gpu_mem_cap_GB))
-      num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
+      # num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
+      num_procs = (num_procs + 1) // 2 * 2 # nearest multiple of 2
 
       print(iteration, exe_json["tensor_par"], exe_json["pipeline_par"], exe_json["data_par"],
-            ai_matrix, per_gpu_mem_bw_GBps, num_procs)
+            ai_matrix, model.get_total_req_mem_cap()/(1024**3), per_gpu_mem_bw_GBps, num_procs)
       print("\n")
 
       params = []
