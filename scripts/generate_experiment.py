@@ -99,7 +99,32 @@ def generate_mem_net_experiment():
         model_params.extend(model_param)
         arch_params.extend(arch_param)
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu, exp_name="baseline", worktype=worktype) 
-    
+
+
+def generate_optim_experiment():
+    gpu = "b100"
+    workloads = [
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
+                 "anthropic-52B",
+                 "chinchilla-64B",
+                 "gpt3-175B",
+                 "gpt3-13B",
+                 "megatron-1T",
+                 ]
+    mems = ["HBM3"]
+    datatypes = ["float16"]
+    worktype = "training"
+        
+    total_length_mm = 96
+    per_pic_length_mm = 8
+    per_pic_bws_GBps = [25, 50, 100, 200, 400, 800, 1600] # 2048, 337.5 = 4050 / 12, 25, 50, 100, 200, 400, 800, 1600
+    mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
+    net_lats_ns = [20]
 
 if __name__ == "__main__":
     try:

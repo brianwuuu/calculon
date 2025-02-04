@@ -50,6 +50,8 @@ class SiPAMExecution(calculon.CommandLine):
     sp.add_argument('output', type=str,
                     help='File path to the output file'
                     " ('*.csv', '*.csv.gz', '*.json', '*.json.gz')")
+    sp.add_argument('-t', '--training', action='store_true',
+                    help='Run optimization on training or inference')
 
   @staticmethod
   def run_command(logger, args):
@@ -66,7 +68,11 @@ class SiPAMExecution(calculon.CommandLine):
     exe_json = SiPAMExecution.get_init_exe(batch_size=3072, microbatch_size=4, datatype=args.datatype, worktype="training")
 
     iteration = 0
-    while iteration < 10:
+    prev_num_procs = -1
+    prev_ai_total = -1
+    
+    # store prev 10 results and check if curr AI is in one of them
+    while iteration < args.optim_iter:
       exe = Llm.Execution.from_json(exe_json)
       model = Llm(app, logger)
       model.compile(syst, exe)
@@ -76,10 +82,13 @@ class SiPAMExecution(calculon.CommandLine):
       flops_vector = syst.get_vector_flops(args.datatype)
       ai = model.get_arithmetic_intensity()
       ai_matrix = ai['matrix']
-      ai_vector = ai['vector']
+      # ai_vector = ai['vector']
+      ai_total = ai['total']
       
       # req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
-      req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
+      # req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
+      req_mem_bw_per_gpu_GBps = ai_total / ai_matrix / 1e9
+      
 
       num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
       per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
@@ -96,6 +105,9 @@ class SiPAMExecution(calculon.CommandLine):
             ai_matrix, model.get_total_req_mem_cap()/(1024**3), per_gpu_mem_bw_GBps, num_procs)
       print("\n")
 
+      if ai_total == prev_ai_total: break
+      else: prev_ai_total = ai_total
+      
       params = []
       for tp in Llm.get_all_tensor_parallelisms(
           num_procs, app.hidden, app.attn_heads):
@@ -105,12 +117,12 @@ class SiPAMExecution(calculon.CommandLine):
           for ppint in Llm.get_valid_pipeline_interleavings(app.num_blocks, pp):
             batch_size = SiPAMExecution.get_batch_size(dp, args.max_batch_size)
             if batch_size is None: continue
-            for activation_recompute in ['full']:
+            for activation_recompute in pick(args.training, ['full'], ['none']):
               for optimizer_sharding in [False]:
                 for tensor_par_comm_type in ['rs_ag']:
                   params.append(
                     (False, 1, False, num_procs,
-                    args.max_batch_size, args.datatype, app, syst, tp, pp, dp,
+                    args.max_batch_size, args.datatype, args.training, app, syst, tp, pp, dp,
                     ppint, batch_size, activation_recompute, optimizer_sharding,
                     tensor_par_comm_type, [True], True,
                     not True, not True))
@@ -172,7 +184,7 @@ class SiPAMExecution(calculon.CommandLine):
         last += data_par
 
   @staticmethod
-  def search(debug, top_n, layers, num_procs, max_batch_size, datatype,
+  def search(debug, top_n, layers, num_procs, max_batch_size, datatype, training,
              app, syst, tp, pp, dp, ppint, batch_size, activation_recompute,
              optimizer_sharding, tensor_par_comm_type, fused_acts, mbs_break,
              allow_tp_overlap, allow_dp_overlap):
@@ -231,7 +243,7 @@ class SiPAMExecution(calculon.CommandLine):
                             'weight_offload': weight_offload,
                             'activations_offload': activations_offload,
                             'optimizer_offload': optimizer_offload,
-                            'training': True
+                            'training': training
                           }
 
                           if not debug:
