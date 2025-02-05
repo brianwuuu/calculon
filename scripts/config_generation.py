@@ -126,6 +126,7 @@ def setup_experiment(mem_params, net_params, model_params, arch_params, **kwargs
     model_config_files = generate_model_configs(model_params)
     arch_config_files = generate_arch_configs(arch_params, **kwargs)
     config_files = generate_output_files(model_config_files, arch_config_files, sys_config_files)
+    if 
     bash_script = utilities.generateBashScript(EXECUTION_DIRECTORY, config_files, exp_name=exp_name)
     # utilities.generateExecutionScript(EXECUTION_DIRECTORY, bash_script_names)
 

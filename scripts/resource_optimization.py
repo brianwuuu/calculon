@@ -103,3 +103,15 @@ def baseline_mem_net(gpu, workload, mem, datatype, **kwargs):
     model_params = [{'model':workload}]
     arch_params = [(num_gpu, par_params[0], par_params[1], par_params[2])]
     return mem_params, net_params, model_params, arch_params
+
+def sipam_mem_net(gpu, workload, mem, datatype, **kwargs):
+    mem_info = get_mem_info(mem)
+    mem_params = [{"mem1_ns": mem_info["lat_ns"], 
+                   "mem2_GB": 15000, 
+                   "mem2_ns": mem_info["lat_ns"]}]
+    net_params = [{"net1_ns": kwargs["net_lat_ns"],
+                   "net2_ns": kwargs["net_lat_ns"]
+                   }]
+    model_params = [{'model':workload}]
+    arch_params = []
+    return mem_params, net_params, model_params, arch_params

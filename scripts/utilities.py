@@ -66,12 +66,29 @@ def generateModelFileNameString(model_config):
         model_config["attn_heads"], model_config["attn_size"], model_config["num_blocks"])
     return str_builder
         
-# Generate the bash script used to run simulations in Netbench
+# Generate the bash script used to run simulations in Calculon
 def generateBashScript(exec_dir, config_file_list, exp_name=""):
     # Construct the string builder
     str_builder = "cd $CALCULON_HOME\n\n"
     str_builder += "export PYTHONPATH=.\n\n"
     exec_prefix = "./bin/calculon llm"
+    exec_file_name = "automated_execution.sh" if exp_name == "" else f"automated_execution_{exp_name}.sh"
+    # Write the script to the .sh file
+    for config_file in config_file_list:
+        assert(len(config_file) == 3), "[Error] Must have 3 file inputs, now have {}".format(len(config_file))
+        str_builder += (exec_prefix + " " + config_file[0] + " " + config_file[1] + " " + config_file[2] + "\n")
+    with open(exec_dir + exec_file_name, "w+") as f:
+        f.write(str_builder)
+    print("[Setup] Generate bash script to {}".format(exec_dir + exec_file_name))
+    st = os.stat(exec_dir + exec_file_name)
+    os.chmod(exec_dir + exec_file_name, st.st_mode | stat.S_IEXEC)
+    return 
+
+def generateOptimBashScript(exec_dir, config_file_list, exp_name=""):
+    # Construct the string builder
+    str_builder = "cd $CALCULON_HOME\n\n"
+    str_builder += "export PYTHONPATH=.\n\n"
+    exec_prefix = "./bin/calculon llm-sipam-execution"
     exec_file_name = "automated_execution.sh" if exp_name == "" else f"automated_execution_{exp_name}.sh"
     # Write the script to the .sh file
     for config_file in config_file_list:

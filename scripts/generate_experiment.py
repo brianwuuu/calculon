@@ -4,7 +4,7 @@ File generating script for memory disaggregation experiments.
 import sys, getopt
 import utilities
 from config_generation import setup_experiment
-from resource_optimization import optimize_mem_net, baseline_mem_net
+from resource_optimization import optimize_mem_net, baseline_mem_net, sipam_mem_net
 
 ####################################################################################################
 # Simulation Parameters 
@@ -122,9 +122,22 @@ def generate_optim_experiment():
         
     total_length_mm = 96
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [25, 50, 100, 200, 400, 800, 1600] # 2048, 337.5 = 4050 / 12, 25, 50, 100, 200, 400, 800, 1600
+    per_pic_bws_GBps = [1600] # 2048, 337.5 = 4050 / 12, 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
+    
+    # optimized experiments
+    mem_params, net_params, model_params, arch_params = [], [], [], []
+    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesianProduct(
+        [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns]):
+        args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, 
+                    per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns)
+        mem_param, net_param, model_param, arch_param = sipam_mem_net(gpu, workload, mem, datatype, **args)
+        mem_params.extend(mem_param)
+        net_params.extend(net_param)
+        model_params.extend(model_param)
+        arch_params.extend(arch_param)
+    setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu, worktype=worktype, datatype=datatype)
 
 if __name__ == "__main__":
     try:
@@ -145,5 +158,7 @@ if __name__ == "__main__":
         generate_sipam_experiment()
     elif exp_name == "mem_net":
         generate_mem_net_experiment()
+    elif exp_name == "optim":
+        generate_optim_experiment()
     else:
         raise Exception("[Error] Invalid Experiment String")

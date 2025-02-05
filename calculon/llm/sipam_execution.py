@@ -37,14 +37,14 @@ class SiPAMExecution(calculon.CommandLine):
       SiPAMExecution.NAME, aliases=SiPAMExecution.ALIASES,
       help='run a search to find the optimal sipam execution')
     sp.set_defaults(func=SiPAMExecution.run_command)
-    sp.add_argument('application', type=str,
-                    help='File path to application configuration')
     sp.add_argument('max_batch_size', type=int,
                     help='Maximum batch size, will be largest multiple of DP')
     sp.add_argument('datatype', type=str, choices=System.supported_datatypes(),
                     help='The datatype to use')
     sp.add_argument('optim_iter', type=int, default=5,
                     help='Number of iterations to run for optimization')
+    sp.add_argument('application', type=str,
+                    help='File path to application configuration')
     sp.add_argument('system', type=str,
                     help='File path to system configuration')
     sp.add_argument('output', type=str,
