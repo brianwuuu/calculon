@@ -29,12 +29,12 @@ arch = "3072_t4_p64_d12_mbs4_full"
 system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
 model_base_filename = MODEL_DIRECTORY + model + ".json"
 arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-system_base = util.parseJSON(system_base_filename)
-model_base = util.parseJSON(model_base_filename)
-arch_base = util.parseJSON(arch_base_filename)
+system_base = util.parse_JSON(system_base_filename)
+model_base = util.parse_JSON(model_base_filename)
+arch_base = util.parse_JSON(arch_base_filename)
 
 def analyzeTiming():
-    system_filename = util.generateSystemFileNameString(system_base)
+    system_filename = util.generate_system_file_name_string(system_base)
     arch_param = [(8,2,2,2), (16,2,4,2), (32,2,8,2), (64,2,16,2), (128,2,32,2), (256,2,32,4), (512,4,32,4),
                   (1024,4,32,8), (2048,8,32,8), (4096,8,32,16), (8192,8,32,32), (16384,8,32,64), (32768,8,32,128)]
     
@@ -53,11 +53,11 @@ def analyzeTiming():
         new_arch["weight_offload"] = True
         new_arch["activations_offload"] = True
         new_arch["optimizer_offload"] = True
-        arch_filename = util.generateArchFileNameString(new_arch)
+        arch_filename = util.generate_arch_file_name_string(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
         output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
         assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-        exec_output = util.parseJSON(output_dir + system_filename)
+        exec_output = util.parse_JSON(output_dir + system_filename)
         job_stats["FW Pass"].append(exec_output["Batch FW time"])
         job_stats["BW Pass"].append(exec_output["Batch BW time"])
         job_stats["Optim Step"].append(exec_output["Batch optim time"])
@@ -72,7 +72,7 @@ def analyzeTiming():
     plot_util.plotMultiColStackedBarChart(x = x_, y = y_, path = "")
     
 def analyzeMemoryUsage():
-    system_filename = util.generateSystemFileNameString(system_base)
+    system_filename = util.generate_system_file_name_string(system_base)
     arch_param = [(8,2,2,2), (16,2,4,2), (32,2,8,2), (64,2,16,2), (128,2,32,2), (256,2,32,4), (512,4,32,4),
                   (1024,4,32,8), (2048,8,32,8), (4096,8,32,16), (8192,8,32,32), (16384,8,32,64), (32768,8,32,128)]
     # arch_param = [(64,2,16,2), (128,2,32,2), (256,2,32,4), (512,2,64,4), # (8,2,2,2), (16,2,4,2), (32,2,8,2), 
@@ -89,11 +89,11 @@ def analyzeMemoryUsage():
         new_arch["weight_offload"] = True
         new_arch["activations_offload"] = True
         new_arch["optimizer_offload"] = True
-        arch_filename = util.generateArchFileNameString(new_arch)
+        arch_filename = util.generate_arch_file_name_string(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
         output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
         if os.path.isfile(output_dir + system_filename):
-            exec_output = util.parseJSON(output_dir + system_filename)
+            exec_output = util.parse_JSON(output_dir + system_filename)
             job_stats["Weights"].append(util.toBytes(exec_output["Weights"])  / (10 ** 9))
             job_stats["Activations"].append((util.toBytes(exec_output["Act"]) + util.toBytes(exec_output["Act CP"])) / (10 ** 9))
             job_stats["Act Gradients"].append(util.toBytes(exec_output["Act grad"]) / (10 ** 9))

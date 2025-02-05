@@ -30,9 +30,9 @@ arch = f"{arch_param[0]}_t{arch_param[1]}_p{arch_param[2]}_d{arch_param[3]}_mbs4
 system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
 model_base_filename = MODEL_DIRECTORY + model + ".json"
 arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-system_base = util.parseJSON(system_base_filename)
-model_base = util.parseJSON(model_base_filename)
-arch_base = util.parseJSON(arch_base_filename)
+system_base = util.parse_JSON(system_base_filename)
+model_base = util.parse_JSON(model_base_filename)
+arch_base = util.parse_JSON(arch_base_filename)
 
 def analyzeHBMBandwidth():
     ## analyze time vs local hbm capacity 
@@ -73,17 +73,17 @@ def analyzeHBMBandwidth():
                 new_system["networks"][1]["bandwidth"], new_system["networks"][1]["latency"], new_system["networks"][1]["processor_usage"] = net_param[3], net_param[4], net_param[5]
                 new_system["networks"][0]["size"] = 32768
                 new_system["processing_mode"] = "no-overlap" # roofline, no-overlap
-                system_filename = util.generateSystemFileNameString(new_system)
+                system_filename = util.generate_system_file_name_string(new_system)
             
                 # offloading
                 new_arch = copy.deepcopy(arch_base)
                 new_arch["weight_offload"] = True
                 new_arch["activations_offload"] = True
                 new_arch["optimizer_offload"] = True
-                arch_filename = util.generateArchFileNameString(new_arch)
+                arch_filename = util.generate_arch_file_name_string(new_arch)
                 output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
                 assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                exec_output = util.parseJSON(output_dir + system_filename)
+                exec_output = util.parse_JSON(output_dir + system_filename)
                 end_time.append(exec_output["Batch total time"])
             job_stats[f"{per_hbm_bw_GBps} GBps"].append(np.min(end_time))
     pprint.pprint(job_stats)
@@ -131,17 +131,17 @@ def analyzePICBandwidth():
                 new_system["networks"][1]["bandwidth"], new_system["networks"][1]["latency"], new_system["networks"][1]["processor_usage"] = net_param[3], net_param[4], net_param[5]
                 new_system["networks"][0]["size"] = 32768
                 new_system["processing_mode"] = "no-overlap" # roofline, no-overlap
-                system_filename = util.generateSystemFileNameString(new_system)
+                system_filename = util.generate_system_file_name_string(new_system)
             
                 # offloading
                 new_arch = copy.deepcopy(arch_base)
                 new_arch["weight_offload"] = True
                 new_arch["activations_offload"] = True
                 new_arch["optimizer_offload"] = True
-                arch_filename = util.generateArchFileNameString(new_arch)
+                arch_filename = util.generate_arch_file_name_string(new_arch)
                 output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
                 assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                exec_output = util.parseJSON(output_dir + system_filename)
+                exec_output = util.parse_JSON(output_dir + system_filename)
                 end_time.append(exec_output["Batch total time"])
             job_stats[f"{per_pic_bw_GBps} GBps"].append(np.max(end_time))
     pprint.pprint(job_stats)
@@ -188,17 +188,17 @@ def analyzeMemNetRatio():
             new_system["networks"][1]["bandwidth"], new_system["networks"][1]["latency"], new_system["networks"][1]["processor_usage"] = net_param[3], net_param[4], net_param[5]
             new_system["networks"][0]["size"] = 32768
             new_system["processing_mode"] = "no-overlap" # roofline, no-overlap
-            system_filename = util.generateSystemFileNameString(new_system)
+            system_filename = util.generate_system_file_name_string(new_system)
         
             # offloading
             new_arch = copy.deepcopy(arch_base)
             new_arch["weight_offload"] = False
             new_arch["activations_offload"] = False
             new_arch["optimizer_offload"] = False
-            arch_filename = util.generateArchFileNameString(new_arch)
+            arch_filename = util.generate_arch_file_name_string(new_arch)
             output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
             assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-            exec_output = util.parseJSON(output_dir + system_filename)
+            exec_output = util.parse_JSON(output_dir + system_filename)
             job_stats[f"{per_hbm_bw_GBps} GBps"].append(exec_output["Batch total time"])
     pprint.pprint(job_stats)
     mem_to_net_str = [f"{x[0]}:{x[1]}" for x in mem_to_net_split]
@@ -235,7 +235,7 @@ def analyzeMemUsed():
     new_system["networks"][1]["bandwidth"], new_system["networks"][1]["latency"], new_system["networks"][1]["processor_usage"] = net_ratio*per_pic_bw_GBps, 1e-5, 0.15
     new_system["networks"][0]["size"] = 32768
     new_system["processing_mode"] = "no-overlap" # roofline, no-overlap
-    system_filename = util.generateSystemFileNameString(new_system)
+    system_filename = util.generate_system_file_name_string(new_system)
     
     # arch_params
     arch_params = [(64,2,16,2), (128,2,32,2), 
@@ -251,10 +251,10 @@ def analyzeMemUsed():
         new_arch["weight_offload"] = False
         new_arch["activations_offload"] = False
         new_arch["optimizer_offload"] = False
-        arch_filename = util.generateArchFileNameString(new_arch)
+        arch_filename = util.generate_arch_file_name_string(new_arch)
         output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/" + gpu + "/"
         assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-        exec_output = util.parseJSON(output_dir + system_filename)
+        exec_output = util.parse_JSON(output_dir + system_filename)
         job_stats[f"Local"].append(float(exec_output["Mem tier1 capacity used"].split(" ")[0]))
         job_stats[f"Remote"].append(float(exec_output["Mem tier2 capacity used"].split(" ")[0]))
     network_sizes = [str(x[0]) for x in arch_params]

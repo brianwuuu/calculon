@@ -29,9 +29,9 @@ arch = "4096_t8_p64_d8_mbs4_full" # "3072_t4_p64_d12_mbs4_full"
 system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
 model_base_filename = MODEL_DIRECTORY + model + ".json"
 arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-system_base = util.parseJSON(system_base_filename)
-model_base = util.parseJSON(model_base_filename)
-arch_base = util.parseJSON(arch_base_filename)
+system_base = util.parse_JSON(system_base_filename)
+model_base = util.parse_JSON(model_base_filename)
+arch_base = util.parse_JSON(arch_base_filename)
 
 superpod_power_stats = computeTotalPower(ng=4096,
                                         nl=92160,
@@ -77,7 +77,7 @@ def analyzeModelSizes():
         new_model["feedforward"] = 4 * model_param[0]
         new_model["attn_heads"] = model_param[2]
         model_sizes.append(model_param[3]) 
-        model_filename = util.generateModelFileNameString(new_model)
+        model_filename = util.generate_model_file_name_string(new_model)
         output_dir = OUTPUT_DIRECTORY + model_filename + "/" + arch + "/" + gpu + "/"
         for sys_param in sys_params:
             new_system = copy.deepcopy(system_base)
@@ -87,10 +87,10 @@ def analyzeModelSizes():
             new_system["mem2"]["GBps"] = sys_param[3]
             new_system["networks"][0]["size"] = 8
             new_system["processing_mode"] = "no_overlap" # roofline, no-overlap
-            system_filename = util.generateSystemFileNameString(new_system)
+            system_filename = util.generate_system_file_name_string(new_system)
             # assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
             if os.path.isfile(output_dir + system_filename):
-                exec_output = util.parseJSON(output_dir + system_filename)
+                exec_output = util.parse_JSON(output_dir + system_filename)
                 job_stats[sys_param[4]].append(exec_output["Batch total time"])
             else:
                 print("[Error] File not found: {}".format(output_dir + system_filename))
@@ -149,7 +149,7 @@ def analyzeNetworkSizes():
         new_arch["weight_offload"] = True
         new_arch["activations_offload"] = True
         new_arch["optimizer_offload"] = True
-        arch_filename = util.generateArchFileNameString(new_arch)
+        arch_filename = util.generate_arch_file_name_string(new_arch)
         network_sizes.append(num_proc)
         output_dir = OUTPUT_DIRECTORY + model_filename + "/" + arch_filename + "/" + gpu + "/"
         for sys_param in sys_params:
@@ -160,10 +160,10 @@ def analyzeNetworkSizes():
             new_system["mem2"]["GBps"] = sys_param[3]
             new_system["networks"][0]["size"] = 8
             new_system["processing_mode"] = "no_overlap" # roofline, no-overlap
-            system_filename = util.generateSystemFileNameString(new_system)
+            system_filename = util.generate_system_file_name_string(new_system)
             # assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
             if os.path.isfile(output_dir + system_filename):
-                exec_output = util.parseJSON(output_dir + system_filename)
+                exec_output = util.parse_JSON(output_dir + system_filename)
                 job_stats[sys_param[4]].append(exec_output["Batch total time"])
             else:
                 job_stats[sys_param[4]].append(0)

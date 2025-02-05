@@ -63,7 +63,7 @@ def analyzePicBW():
                     model,arch_filename,system_filename = get_config_str(optim_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     # job_stats["SiPAM"].append(exec_output["Batch total time"]/norm_time)
                     if not norm_time: norm_time = exec_output["Batch total time"]
                     job_stats[workload].append(exec_output["Batch total time"])

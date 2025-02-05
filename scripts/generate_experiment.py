@@ -1,10 +1,10 @@
 """
 File generating script for memory disaggregation experiments.
 """
-import sys, getopt
+import sys, getopt, pprint
 import utilities
-from config_generation import setup_experiment
-from resource_optimization import optimize_mem_net, baseline_mem_net, sipam_mem_net
+from config_generation import setup_experiment, setup_optim_experiment, generate_optim_configs
+from resource_optimization import optimize_mem_net, baseline_mem_net
 
 ####################################################################################################
 # Simulation Parameters 
@@ -78,7 +78,7 @@ def generate_mem_net_experiment():
     
     # optimized experiments
     mem_params, net_params, model_params, arch_params = [], [], [], []
-    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesianProduct(
+    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesian_product(
         [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns]):
         args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, 
                     per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns)
@@ -91,7 +91,7 @@ def generate_mem_net_experiment():
 
     # baseline experiments
     mem_params, net_params, model_params, arch_params = [], [], [], []
-    for workload, mem, datatype in utilities.cartesianProduct([workloads, mems, datatypes]):
+    for workload, mem, datatype in utilities.cartesian_product([workloads, mems, datatypes]):
         args = dict(worktype=worktype)
         mem_param, net_param, model_param, arch_param = baseline_mem_net(gpu, workload, mem, datatype, **args)
         mem_params.extend(mem_param)
@@ -102,23 +102,25 @@ def generate_mem_net_experiment():
 
 
 def generate_optim_experiment():
-    gpu = "b100"
+    gpu = "h100"
     workloads = [
                  "megatron-126M",
-                 "megatron-530M",
-                 "megatron-1B",
-                 "megatron-5B", 
-                 "megatron-22B", 
-                 "megatron-40B",
-                 "anthropic-52B",
-                 "chinchilla-64B",
-                 "gpt3-175B",
-                 "gpt3-13B",
-                 "megatron-1T",
+                #  "megatron-530M",
+                #  "megatron-1B",
+                #  "megatron-5B", 
+                #  "megatron-22B", 
+                #  "megatron-40B",
+                #  "anthropic-52B",
+                #  "chinchilla-64B",
+                #  "gpt3-175B",
+                #  "gpt3-13B",
+                #  "megatron-1T",
                  ]
-    mems = ["HBM3"]
+    mems = ["HBM2"]
     datatypes = ["float16"]
     worktype = "training"
+    max_batch_size = 2048
+    num_iter = 10
         
     total_length_mm = 96
     per_pic_length_mm = 8
@@ -127,17 +129,15 @@ def generate_optim_experiment():
     net_lats_ns = [20]
     
     # optimized experiments
-    mem_params, net_params, model_params, arch_params = [], [], [], []
-    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesianProduct(
+    optim_config_files = []
+    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesian_product(
         [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns]):
         args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, 
-                    per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns)
-        mem_param, net_param, model_param, arch_param = sipam_mem_net(gpu, workload, mem, datatype, **args)
-        mem_params.extend(mem_param)
-        net_params.extend(net_param)
-        model_params.extend(model_param)
-        arch_params.extend(arch_param)
-    setup_experiment(mem_params, net_params, model_params, arch_params, gpu=gpu, worktype=worktype, datatype=datatype)
+                    per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
+                    datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, num_iter=num_iter)
+        optim_config = generate_optim_configs(gpu, workload, mem, **args)
+        optim_config_files.append(optim_config)
+    setup_optim_experiment(optim_config_files, exp_name="optim")
 
 if __name__ == "__main__":
     try:

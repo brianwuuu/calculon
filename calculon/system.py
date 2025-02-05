@@ -106,6 +106,10 @@ class System:
 
   def set_mem2_capacity(self, cap_GB):
     self.mem2.set_memory_capacity_GB(cap_GB)
+    
+  def set_net_bandwidth(self, bw_GBps):
+    for net in self.networks:
+      net.set_bandwidth(bw_GBps)
 
   def compute_offload_time(self, size):
     return size / self.mem2.throughput(size)

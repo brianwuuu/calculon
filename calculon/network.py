@@ -69,6 +69,9 @@ class Network:
   @property
   def processor_usage(self):
     return self._proc_usage
+  
+  def set_bandwidth(self, bw_GBps):
+    self._bw = bw_GBps * 1e9
 
   def time(self, op, op_size, comm_size):
     """ Computes the time taken for a network operation.

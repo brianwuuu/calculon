@@ -1,6 +1,7 @@
 import copy
 import utilities
 import itertools
+from table import get_mem_info
 
 BASE_DIRECTORY = "/Users/bwu/src/calculon/"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
@@ -8,6 +9,7 @@ SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
 ARCH_DIRECTORY = BASE_DIRECTORY + "examples/"
 EXECUTION_DIRECTORY = BASE_DIRECTORY + "execution/"
+OPTIM_DIRECTORY = BASE_DIRECTORY + "optim/"
 
 def generate_model_configs(model_params : dict, **kwargs):
     """
@@ -19,7 +21,7 @@ def generate_model_configs(model_params : dict, **kwargs):
     for param_dict in model_params:
         model = param_dict["model"]
         model_base_filename = MODEL_DIRECTORY + model + ".json"
-        model_base = utilities.parseJSON(model_base_filename)
+        model_base = utilities.parse_JSON(model_base_filename)
         new_model = copy.deepcopy(model_base)
         new_model["seq_size"] = seq_size 
         if 'hidden' in param_dict: new_model["hidden"] = param_dict['hidden']
@@ -30,9 +32,9 @@ def generate_model_configs(model_params : dict, **kwargs):
         if not any(param in param_dict.keys() for param in ['hidden', 'attn_size', 'num_blocks']):
             model_config_file = model_base_filename
         else:
-            model_filename = utilities.generateModelFileNameString(new_model) + ".json"
+            model_filename = utilities.generate_model_file_name_string(new_model) + ".json"
             model_config_file = MODEL_DIRECTORY + model_filename
-            utilities.dumpJSON(model_config_file, new_model)
+            utilities.dump_JSON(model_config_file, new_model)
         model_config_files.append(model_config_file)
     return model_config_files
 
@@ -43,7 +45,7 @@ def generate_arch_configs(arch_params, **kwargs):
     """
     arch = "4096_t8_p64_d8_mbs4_full" # "3072_t4_p64_d12_mbs4_full"
     arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-    arch_base = utilities.parseJSON(arch_base_filename)
+    arch_base = utilities.parse_JSON(arch_base_filename)
     arch_config_files = []
     if not arch_params: arch_config_files.append(arch_base_filename)
     for num_proc, tensor_par, pipe_par, data_par in arch_params:
@@ -64,9 +66,9 @@ def generate_arch_configs(arch_params, **kwargs):
         if "worktype" in kwargs: 
             new_arch["training"] = False if kwargs['worktype'] == "inference" else True
         new_arch["activation_recompute"] = 'none' if new_arch["training"] == False else "full"
-        arch_filename = utilities.generateArchFileNameString(new_arch)
+        arch_filename = utilities.generate_arch_file_name_string(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
-        utilities.dumpJSON(arch_config_file, new_arch)
+        utilities.dump_JSON(arch_config_file, new_arch)
         arch_config_files.append(arch_config_file)
     return arch_config_files
 
@@ -81,7 +83,7 @@ def generate_system_configs(gpu, mem_params, net_params):
     elif gpu == "b100": gpu = "b100_80g"
     else: raise Exception(f"[Error] GPU {gpu} not known")
     system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
-    system_base = utilities.parseJSON(system_base_filename)
+    system_base = utilities.parse_JSON(system_base_filename)
     sys_config_files = []
     for mem_param, net_param in itertools.zip_longest(mem_params, net_params, fillvalue=None):
         new_system = copy.deepcopy(system_base)
@@ -99,22 +101,66 @@ def generate_system_configs(gpu, mem_params, net_params):
         if "net2_eff" in net_param: new_system["networks"][1]["efficiency"] = net_param['net2_eff']
         new_system["networks"][0]["size"] = 32768
         new_system["processing_mode"] = "roofline" # roofline, no_overlap
-        system_filename = utilities.generateSystemFileNameString(new_system)
+        system_filename = utilities.generate_system_file_name_string(new_system)
         sys_config_file = SYSTEM_DIRECTORY + system_filename
-        utilities.dumpJSON(sys_config_file, new_system)
+        utilities.dump_JSON(sys_config_file, new_system)
         sys_config_files.append(sys_config_file)
-        # output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model_filename, arch, gpu)
+        # output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model_filename, arch, gpu)
         # sys_config_files.append(SYSTEM_DIRECTORY + system_filename + " " + output_dir + system_filename)
     return sys_config_files
 
+def generate_optim_configs(gpu, workload, mem, **kwargs):    
+    # model params (unchanged)
+    model_base_filename = MODEL_DIRECTORY + workload + ".json"
+    
+    # system params 
+    if gpu == "h100": gpu = "h100_80g_nvl8" 
+    elif gpu == "a100": gpu = "a100_80g"
+    elif gpu == "b100": gpu = "b100_80g"
+    else: raise Exception(f"[Error] GPU {gpu} not known")
+    system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
+    system_base = utilities.parse_JSON(system_base_filename)
+    new_system = copy.deepcopy(system_base)
+    mem_info = get_mem_info(mem)
+    new_system["mem1"]["GiB"] = mem_info['cap_GB']
+    new_system["mem1"]["GBps"] = mem_info['bw_GBps']
+    new_system["mem1"]["ns"] = mem_info['lat_ns'] + kwargs["mem_add_lat_ns"]
+    new_system["mem2"]["GiB"] = 1000000 # set to large for first iteration
+    new_system["mem2"]["GBps"] = mem_info['bw_GBps']
+    new_system["mem2"]["ns"] = mem_info['lat_ns'] + kwargs["mem_add_lat_ns"]
+    new_system["max_num_mem_pic_per_gpu"] = kwargs["total_length_mm"] // kwargs["per_pic_length_mm"] - 1
+    new_system["per_pic_bw_GBps"] = kwargs["per_pic_bw_GBps"]
+    new_system["per_pic_length_mm"] = kwargs["per_pic_length_mm"]
+    new_system["total_length_mm"] = kwargs["total_length_mm"]
+    new_system["processing_mode"] = "roofline"
+    system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
+    
+    # optim params
+    utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
+    utilities.create_directory(OPTIM_DIRECTORY + workload + "/" + system_string + "/")
+    optim_filename = OPTIM_DIRECTORY + workload + "/" + system_string + "/" + "optim_param.json"
+    
+    optim_configs = {
+        "model": model_base_filename,
+        "system": new_system,
+        "datatype": kwargs["datatype"],
+        "worktype": kwargs["worktype"],
+        "max_batch_size": kwargs["max_batch_size"],
+        "num_iter": kwargs["num_iter"],
+        "output_file_dir": OUTPUT_DIRECTORY, 
+    }
+    
+    utilities.dump_JSON(optim_filename, optim_configs)
+    return optim_filename
+
 def generate_output_files(model_config_files, arch_config_files, sys_config_files):
-    config_files = utilities.zipConfigs([model_config_files, arch_config_files, sys_config_files])
+    config_files = utilities.zip_configs([model_config_files, arch_config_files, sys_config_files])
     new_config_files = []
     for model, arch, system in config_files:
         model_str = (model.split("/")[-1]).split(".")[0]
         arch_str = (arch.split("/")[-1]).split(".")[0]
         sys_str = system.split("/")[-1]
-        output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model_str, arch_str)
+        output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model_str, arch_str)
         output_str = system + " " + output_dir + sys_str
         new_config_files.append((model, arch, output_str))
     return new_config_files
@@ -126,9 +172,11 @@ def setup_experiment(mem_params, net_params, model_params, arch_params, **kwargs
     model_config_files = generate_model_configs(model_params)
     arch_config_files = generate_arch_configs(arch_params, **kwargs)
     config_files = generate_output_files(model_config_files, arch_config_files, sys_config_files)
-    if 
-    bash_script = utilities.generateBashScript(EXECUTION_DIRECTORY, config_files, exp_name=exp_name)
-    # utilities.generateExecutionScript(EXECUTION_DIRECTORY, bash_script_names)
+    bash_script = utilities.generate_bash_script(EXECUTION_DIRECTORY, config_files, exp_name=exp_name)
+    # utilities.generate_execution_script(EXECUTION_DIRECTORY, bash_script_names)
+
+def setup_optim_experiment(config_files, **kwargs):
+    bash_script = utilities.generate_optim_bash_script(EXECUTION_DIRECTORY, config_files, exp_name=kwargs['exp_name'])
 
 def get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params, **kwargs):
     model_config_files = generate_model_configs(model_params)

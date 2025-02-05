@@ -1,14 +1,14 @@
 import json, itertools, os
 
 # Parse JSON file into dictionary object
-def parseJSON(filename):
+def parse_JSON(filename):
     print("[Analysis] Parsing JSON file " + filename)
     assert(os.path.isfile(filename)), filename
     with open(filename) as json_file: 
         json_dict = json.load(json_file)
     return json_dict
 
-def dumpJSON(filename, map):
+def dump_JSON(filename, map):
     with open(filename, "w+") as json_file:
         json.dump(map, json_file)
         
@@ -24,7 +24,7 @@ def toBytes(mem_str):
     else: raise Exception("[Error] Invalid memory unit: {}".format(unit))
     return float(val) * factor
         
-def generateSystemFileNameString(sys_config):
+def generate_system_file_name_string(sys_config):
     compute_str = "{}tflops_".format(sys_config["matrix"]["float16"]["tflops"])
     compute_str += "rl_" if sys_config["processing_mode"] == "roofline" else ""
     mem_str = "mem1_{}GBps_{}GB_mem2_{}GBps_{}GB_".format(
@@ -38,7 +38,7 @@ def generateSystemFileNameString(sys_config):
     system_filename = compute_str + mem_str + network_str + ".json"
     return system_filename
 
-def generateArchFileNameString(arch_config):
+def generate_arch_file_name_string(arch_config):
     str_builder = "{}_t{}_p{}_d{}_mbs{}{}{}{}_full".format(
         arch_config["num_procs"],
         arch_config["tensor_par"], arch_config["pipeline_par"], arch_config["data_par"],
@@ -49,7 +49,7 @@ def generateArchFileNameString(arch_config):
     )
     return str_builder
 
-def generateModelFileNameString(model_config):
+def generate_model_file_name_string(model_config):
     str_builder = "{}h_{}ff_{}ss_{}ah_{}as_{}nb".format(
         model_config["hidden"], model_config["feedforward"], model_config["seq_size"], 
         model_config["attn_heads"], model_config["attn_size"], model_config["num_blocks"])
@@ -76,5 +76,5 @@ def extractMemoryInfo(stats):
     usage["Optimizer Space"] = stats["Optim space"]
     return usage
 
-def cartesianProduct(param_list):
+def cartesian_product(param_list):
     return [x for x in itertools.product(*param_list)]

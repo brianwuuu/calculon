@@ -29,9 +29,9 @@ arch = "3072_t4_p64_d12_mbs4_full"
 system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
 model_base_filename = MODEL_DIRECTORY + model + ".json"
 arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-system_base = util.parseJSON(system_base_filename)
-# model_base = utilities.parseJSON(model_base_filename)
-# arch_base = utilities.parseJSON(arch_base_filename)
+system_base = util.parse_JSON(system_base_filename)
+# model_base = utilities.parse_JSON(model_base_filename)
+# arch_base = utilities.parse_JSON(arch_base_filename)
 
 def analyzeMemBandwidth():
     gpu = "h100_80g_nvl8"
@@ -42,9 +42,9 @@ def analyzeMemBandwidth():
     for mem1_GBps in mem1_GBps_list:
         new_system = copy.deepcopy(system_base)
         new_system["mem1"]["GBps"] = mem1_GBps
-        filename = util.generateSystemFileNameString(new_system)
+        filename = util.generate_system_file_name_string(new_system)
         output_dir = OUTPUT_DIRECTORY + model + "/" + arch + "/" + gpu + "/"
-        exec_output = util.parseJSON(output_dir + filename)
+        exec_output = util.parse_JSON(output_dir + filename)
         job_stats["1"].append(exec_output["total_time"])
     x_ = {"label": "Local Memory Bandwidth", "data": mem1_GBps_list, "log": None, "limit": None}
     y_ = {"label": "Total Execution Time (s)", "data": job_stats, "log": None, "limit": None}

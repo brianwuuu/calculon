@@ -4,36 +4,36 @@ def nearest_pow_of_2(x):
     return 1<<(x-1).bit_length()
 
 # Parse JSON file into dictionary object
-def parseJSON(filename):
+def parse_JSON(filename):
     with open(filename) as json_file: 
         json_dict = json.load(json_file)
     return json_dict
 
-def dumpJSON(filename, map):
+def dump_JSON(filename, map):
     with open(filename, "w+") as json_file:
         json.dump(map, json_file, indent=2)
         
-def createDirectory(directory_path):
+def create_directory(directory_path):
     if not os.path.isdir(directory_path):
         os.mkdir(directory_path)
 
-def createOutputDirectory(output_dir, model_dir, arch_dir):
-    createDirectory(output_dir + model_dir)
-    createDirectory(output_dir + model_dir + "/" + arch_dir)
-    createDirectory(output_dir + model_dir + "/" + arch_dir + "/")
+def create_output_directory(output_dir, model_dir, arch_dir):
+    create_directory(output_dir + model_dir)
+    create_directory(output_dir + model_dir + "/" + arch_dir)
+    create_directory(output_dir + model_dir + "/" + arch_dir + "/")
     return output_dir + model_dir + "/" + arch_dir + "/" 
 
-def writeStringToFile(filename, string):
+def write_string_to_file(filename, string):
     with open(filename, "w+") as f:
         f.write(string)
         
-def cartesianProduct(param_list):
+def cartesian_product(param_list):
     return [x for x in itertools.product(*param_list)]
 
-def zipConfigs(config_list):
+def zip_configs(config_list):
     return list(itertools.zip_longest(*config_list))
         
-def generateSystemFileNameString(sys_config):
+def generate_system_file_name_string(sys_config):
     compute_str = "{}tflops_".format(sys_config["matrix"]["float16"]["tflops"])
     compute_str += "rl_" if sys_config["processing_mode"] == "roofline" else ""
     mem_str = "mem1_{}GBps_{}ns_{}GB_mem2_{}GBps_{}ns_{}GB_".format(
@@ -47,7 +47,7 @@ def generateSystemFileNameString(sys_config):
     system_filename = compute_str + mem_str + network_str + ".json"
     return system_filename
 
-def generateArchFileNameString(arch_config):
+def generate_arch_file_name_string(arch_config):
     str_builder = "{}_t{}_p{}_d{}_mbs{}{}{}{}_{}{}".format(
         arch_config["num_procs"],
         arch_config["tensor_par"], arch_config["pipeline_par"], arch_config["data_par"],
@@ -60,14 +60,14 @@ def generateArchFileNameString(arch_config):
     )
     return str_builder
 
-def generateModelFileNameString(model_config):
+def generate_model_file_name_string(model_config):
     str_builder = "{}h_{}ff_{}ss_{}ah_{}as_{}nb".format(
         model_config["hidden"], model_config["feedforward"], model_config["seq_size"], 
         model_config["attn_heads"], model_config["attn_size"], model_config["num_blocks"])
     return str_builder
         
 # Generate the bash script used to run simulations in Calculon
-def generateBashScript(exec_dir, config_file_list, exp_name=""):
+def generate_bash_script(exec_dir, config_file_list, exp_name=""):
     # Construct the string builder
     str_builder = "cd $CALCULON_HOME\n\n"
     str_builder += "export PYTHONPATH=.\n\n"
@@ -84,7 +84,7 @@ def generateBashScript(exec_dir, config_file_list, exp_name=""):
     os.chmod(exec_dir + exec_file_name, st.st_mode | stat.S_IEXEC)
     return 
 
-def generateOptimBashScript(exec_dir, config_file_list, exp_name=""):
+def generate_optim_bash_script(exec_dir, config_file_list, exp_name=""):
     # Construct the string builder
     str_builder = "cd $CALCULON_HOME\n\n"
     str_builder += "export PYTHONPATH=.\n\n"
@@ -92,8 +92,7 @@ def generateOptimBashScript(exec_dir, config_file_list, exp_name=""):
     exec_file_name = "automated_execution.sh" if exp_name == "" else f"automated_execution_{exp_name}.sh"
     # Write the script to the .sh file
     for config_file in config_file_list:
-        assert(len(config_file) == 3), "[Error] Must have 3 file inputs, now have {}".format(len(config_file))
-        str_builder += (exec_prefix + " " + config_file[0] + " " + config_file[1] + " " + config_file[2] + "\n")
+        str_builder += (exec_prefix + " " + config_file + "\n")
     with open(exec_dir + exec_file_name, "w+") as f:
         f.write(str_builder)
     print("[Setup] Generate bash script to {}".format(exec_dir + exec_file_name))
@@ -101,7 +100,7 @@ def generateOptimBashScript(exec_dir, config_file_list, exp_name=""):
     os.chmod(exec_dir + exec_file_name, st.st_mode | stat.S_IEXEC)
     return 
 
-def generateExecutionScript(exec_dir, exp_name="", bash_script_names=[]):
+def generate_execution_script(exec_dir, exp_name="", bash_script_names=[]):
     if not bash_script_names: return
     file_name = exp_name + "_nohup" +".sh"
     str_builder = ""

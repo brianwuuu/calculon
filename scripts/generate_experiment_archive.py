@@ -27,9 +27,9 @@ arch = "4096_t8_p64_d8_mbs4_full" # "3072_t4_p64_d12_mbs4_full"
 system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
 model_base_filename = MODEL_DIRECTORY + model + ".json"
 arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-system_base = utilities.parseJSON(system_base_filename)
-model_base = utilities.parseJSON(model_base_filename)
-arch_base = utilities.parseJSON(arch_base_filename)
+system_base = utilities.parse_JSON(system_base_filename)
+model_base = utilities.parse_JSON(model_base_filename)
+arch_base = utilities.parse_JSON(arch_base_filename)
 
 def generateSingleExperiment():
     model_config_file = model_base_filename
@@ -38,8 +38,8 @@ def generateSingleExperiment():
     # modify system
     new_system = copy.deepcopy(system_base)
     # new_system["mem1"]["GBps"] = 2048
-    new_system_filename = utilities.generateSystemFileNameString(new_system)
-    utilities.dumpJSON(SYSTEM_DIRECTORY + new_system_filename, new_system)
+    new_system_filename = utilities.generate_system_file_name_string(new_system)
+    utilities.dump_JSON(SYSTEM_DIRECTORY + new_system_filename, new_system)
     
     # modify model architecture
     new_arch = copy.deepcopy(arch_base)
@@ -50,16 +50,16 @@ def generateSingleExperiment():
     new_arch["weight_offload"] = False
     new_arch["activations_offload"] = False
     new_arch["optimizer_offload"] = False
-    new_arch_filename = utilities.generateArchFileNameString(new_arch)
-    utilities.dumpJSON(ARCH_DIRECTORY + new_arch_filename + ".json", new_arch)
+    new_arch_filename = utilities.generate_arch_file_name_string(new_arch)
+    utilities.dump_JSON(ARCH_DIRECTORY + new_arch_filename + ".json", new_arch)
     # create output directory
-    output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model, new_arch_filename, gpu)
+    output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model, new_arch_filename, gpu)
     sys_config_file =  SYSTEM_DIRECTORY + new_system_filename + " " + output_dir + new_system_filename
     return [[model_config_file, ARCH_DIRECTORY + new_arch_filename + ".json", sys_config_file]]
 
 def generateNetworkSizeExperiment():
     # scale to 10,000
-    system_filename = utilities.generateSystemFileNameString(system_base)
+    system_filename = utilities.generate_system_file_name_string(system_base)
     arch_params = [(8,2,2,2), (16,2,4,2), (32,2,8,2), (64,2,16,2), (128,2,32,2), (256,2,32,4), (512,4,32,4),
                   (1024,4,32,8), (2048,8,32,8), (4096,8,32,16), (8192,8,32,32), (16384,8,32,64), (32768,8,32,128)]
     config_files = []
@@ -73,22 +73,22 @@ def generateNetworkSizeExperiment():
         new_arch["weight_offload"] = True
         new_arch["activations_offload"] = True
         new_arch["optimizer_offload"] = True
-        arch_filename = utilities.generateArchFileNameString(new_arch)
+        arch_filename = utilities.generate_arch_file_name_string(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
-        utilities.dumpJSON(arch_config_file, new_arch)
-        output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model, arch_filename, gpu)
+        utilities.dump_JSON(arch_config_file, new_arch)
+        output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model, arch_filename, gpu)
         sys_config_file = system_base_filename + " " + output_dir + system_filename
         config_files.append([model_base_filename, arch_config_file, sys_config_file]) 
     return config_files
 
 def generateModelSizeExperimentV1():
     # scale to 1T
-    system_filename = utilities.generateSystemFileNameString(system_base)
+    system_filename = utilities.generate_system_file_name_string(system_base)
     models = ["megatron-126M", "megatron-5B", "megatron-22B", "megatron-40B", "megatron-1T"]
     config_files = []
     for model in models:
         model_base_filename = MODEL_DIRECTORY + model + ".json"
-        output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model, arch, gpu)
+        output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model, arch, gpu)
         sys_config_file = system_base_filename + " " + output_dir + system_filename
         config_files.append([model_base_filename, arch_base_filename, sys_config_file]) 
     return config_files
@@ -97,7 +97,7 @@ def generateModelSizeExperimentV2():
     # scale to 1T
     arch = "2_t1_p1_d2_mbs4_full" # "4096_t8_p32_d16_mbs4_full" # "4096_t4_p32_d32_mbs4_full" # "4096_t4_p32_d32_mbs4_wo_ao_oo_full"
     arch_base_filename = ARCH_DIRECTORY + arch + ".json"
-    system_filename = utilities.generateSystemFileNameString(system_base)
+    system_filename = utilities.generate_system_file_name_string(system_base)
     model_params = [(24576,192,128), (32768,205,160), (40960,213,192), (50176,224,224),
               (60416,236,256), (70656,245,288), (81920,256,320), (94208,268,352),
               (106496,277,384), (119808,288,416), (134144,299,448), (148480,309,480)
@@ -111,10 +111,10 @@ def generateModelSizeExperimentV2():
         new_model["num_blocks"] = param[2]
         new_model["feedforward"] = 4 * param[0]
         new_model["attn_heads"] = param[2]
-        model_filename = utilities.generateModelFileNameString(new_model)
+        model_filename = utilities.generate_model_file_name_string(new_model)
         model_config_file = MODEL_DIRECTORY + model_filename + ".json"
-        utilities.dumpJSON(model_config_file, new_model)
-        output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model_filename, arch, gpu)
+        utilities.dump_JSON(model_config_file, new_model)
+        output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model_filename, arch, gpu)
         sys_config_file = system_base_filename + " " + output_dir + system_filename
         config_files.append([model_config_file, arch_base_filename, sys_config_file]) 
     return config_files
@@ -140,9 +140,9 @@ def generateMultipleExperiment():
         new_model["num_blocks"] = param[2]
         new_model["feedforward"] = 4 * param[0]
         new_model["attn_heads"] = param[2]
-        model_filename = utilities.generateModelFileNameString(new_model)
+        model_filename = utilities.generate_model_file_name_string(new_model)
         model_config_file = MODEL_DIRECTORY + model_filename + ".json"
-        utilities.dumpJSON(model_config_file, new_model)
+        utilities.dump_JSON(model_config_file, new_model)
         model_config_files.append(model_config_file)
     
     ########################################################################################
@@ -173,9 +173,9 @@ def generateMultipleExperiment():
         new_arch["weight_offload"] = False
         new_arch["activations_offload"] = False
         new_arch["optimizer_offload"] = False
-        arch_filename = utilities.generateArchFileNameString(new_arch)
+        arch_filename = utilities.generate_arch_file_name_string(new_arch)
         arch_config_file = ARCH_DIRECTORY + arch_filename + ".json"
-        utilities.dumpJSON(arch_config_file, new_arch)
+        utilities.dump_JSON(arch_config_file, new_arch)
         arch_config_files.append(arch_config_file)
         
     ########################################################################################
@@ -234,20 +234,20 @@ def generateMultipleExperiment():
             new_system["networks"][1]["bandwidth"], new_system["networks"][1]["latency"], new_system["networks"][1]["processor_usage"] = net_param[3], net_param[4], net_param[5]
             new_system["networks"][0]["size"] = 32768
             new_system["processing_mode"] = "no_overlap" # roofline, no-overlap
-            system_filename = utilities.generateSystemFileNameString(new_system)
+            system_filename = utilities.generate_system_file_name_string(new_system)
             sys_config_file = SYSTEM_DIRECTORY + system_filename
-            utilities.dumpJSON(sys_config_file, new_system)
+            utilities.dump_JSON(sys_config_file, new_system)
             sys_config_files.append(sys_config_file)
-            # output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model_filename, arch, gpu)
+            # output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model_filename, arch, gpu)
             # sys_config_files.append(SYSTEM_DIRECTORY + system_filename + " " + output_dir + system_filename)
     
-    config_files = utilities.cartesianProduct([model_config_files, arch_config_files, sys_config_files])
+    config_files = utilities.cartesian_product([model_config_files, arch_config_files, sys_config_files])
     new_config_files = []
     for model, arch, system in config_files:
         model_str = (model.split("/")[-1]).split(".")[0]
         arch_str = (arch.split("/")[-1]).split(".")[0]
         sys_str = system.split("/")[-1]
-        output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model_str, arch_str, gpu)
+        output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model_str, arch_str, gpu)
         output_str = system + " " + output_dir + sys_str
         new_config_files.append((model, arch, output_str))
     return new_config_files
@@ -262,11 +262,11 @@ def generateMemBandwidthExperiment():
     for mem1_GBps in mem1_GBps_list:
         new_system = copy.deepcopy(system_base)
         new_system["mem1"]["GBps"] = mem1_GBps
-        filename = utilities.generateSystemFileNameString(new_system)
-        utilities.dumpJSON(SYSTEM_DIRECTORY + filename, new_system)
-        output_dir = utilities.createOutputDirectory(OUTPUT_DIRECTORY, model, arch, gpu)
+        filename = utilities.generate_system_file_name_string(new_system)
+        utilities.dump_JSON(SYSTEM_DIRECTORY + filename, new_system)
+        output_dir = utilities.create_output_directory(OUTPUT_DIRECTORY, model, arch, gpu)
         sys_config_files.append(SYSTEM_DIRECTORY + filename + " " + output_dir + filename)
-    config_files = utilities.cartesianProduct([model_config_files, arch_config_files, sys_config_files])
+    config_files = utilities.cartesian_product([model_config_files, arch_config_files, sys_config_files])
     return config_files 
     
 if __name__ == "__main__":
@@ -298,5 +298,5 @@ if __name__ == "__main__":
     else:
         print("[Error] Invalid Experiment Type")
     if config_files:
-        bash_script = utilities.generateBashScript(EXECUTION_DIRECTORY, config_files)
-        # utilities.generateExecutionScript(EXECUTION_DIRECTORY, bash_script_names)
+        bash_script = utilities.generate_bash_script(EXECUTION_DIRECTORY, config_files)
+        # utilities.generate_execution_script(EXECUTION_DIRECTORY, bash_script_names)

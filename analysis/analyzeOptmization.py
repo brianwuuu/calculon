@@ -66,7 +66,7 @@ def analyzeIterTime():
                     model,arch_filename,system_filename = get_config_str(optim_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     norm_time = exec_output["Batch total time"]
                     job_stats["SiPAM"].append(exec_output["Batch total time"]/norm_time)
 
@@ -75,7 +75,7 @@ def analyzeIterTime():
                     model,arch_filename,system_filename = get_config_str(baseline_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     job_stats["Baseline"].append(exec_output["Batch total time"]/norm_time)
 
     pprint.pprint(job_stats)
@@ -116,7 +116,7 @@ def analyzeEfficency():
                     model,arch_filename,system_filename = get_config_str(optim_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     # norm_eff = exec_output[efftype]
                     job_stats["SiPAM"].append(exec_output[efftype] / 1)
 
@@ -125,7 +125,7 @@ def analyzeEfficency():
                     model,arch_filename,system_filename = get_config_str(baseline_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     job_stats["Baseline"].append(exec_output[efftype] / 1)
 
     pprint.pprint(job_stats)
@@ -168,7 +168,7 @@ def analyzeGPUHour():
                     model,arch_filename,system_filename = get_config_str(optim_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     norm_time = exec_output["Batch total time"]
                     optim_num_gpu = arch_params[0][0]
                     optim_per_gpu_mem_cap_GB = mem_params[0]["mem1_GB"]
@@ -182,7 +182,7 @@ def analyzeGPUHour():
                     model,arch_filename,system_filename = get_config_str(baseline_files[0])
                     output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
                     assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parseJSON(output_dir + system_filename)
+                    exec_output = util.parse_JSON(output_dir + system_filename)
                     base_num_gpu = arch_params[0][0]
                     base_per_gpu_mem_cap_GB = mem_params[0]["mem1_GB"]
                     base_num_mu_per_gpu = base_per_gpu_mem_cap_GB // mem_info['cap_GB']
