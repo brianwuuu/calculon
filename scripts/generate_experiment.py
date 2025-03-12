@@ -45,10 +45,10 @@ def generate_sipam_experiment():
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", worktype=worktype)
 
 def generate_simple_experiment():
-    model_params = [{'model': "gpt3-13B"}] # GPT3-175B: (12288,128,96)
+    model_params = [{'model': "gpt3-175B"}] # GPT3-175B: (12288,128,96)
     arch_params = [(1,1,1,1)]
     mem_params, net_params = [{}], [{}]
-    worktype = "inference"
+    worktype = "training"
     setup_experiment(mem_params, net_params, model_params, arch_params, gpu="h100", exp_name="simple", worktype=worktype)
         
 def generate_mem_net_experiment():
@@ -104,7 +104,7 @@ def generate_mem_net_experiment():
 def generate_optim_experiment():
     gpu = "h100"
     workloads = [
-                 "megatron-126M",
+                #  "megatron-126M",
                 #  "megatron-530M",
                 #  "megatron-1B",
                 #  "megatron-5B", 
@@ -112,15 +112,15 @@ def generate_optim_experiment():
                 #  "megatron-40B",
                 #  "anthropic-52B",
                 #  "chinchilla-64B",
-                #  "gpt3-175B",
+                 "gpt3-175B",
                 #  "gpt3-13B",
                 #  "megatron-1T",
                  ]
-    mems = ["HBM2"]
+    mems = ["HBM3"]
     datatypes = ["float16"]
     worktype = "training"
     max_batch_size = 2048
-    num_iter = 10
+    num_iter = 20
         
     total_length_mm = 96
     per_pic_length_mm = 8

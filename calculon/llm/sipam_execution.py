@@ -15,7 +15,8 @@
  * limitations under the License.
 """
 
-import sys, os
+import sys, os, pprint
+import matplotlib.pyplot as plt
 import psutil
 import datetime
 import logging
@@ -60,6 +61,7 @@ class SiPAMExecution(calculon.CommandLine):
                                            worktype=optim_config["worktype"])
 
     iteration = 0
+    num_procs_list = []
     # store prev 10 results and check if curr AI is in one of them
     while iteration < optim_config['num_iter']:
       # Set up the model and execution
@@ -86,7 +88,16 @@ class SiPAMExecution(calculon.CommandLine):
       # Increment loop count and update execution params
       iteration += 1
       exe_json = output[0]['execution']
+      stats = output[0]['stats']
+      print(f"Iteration {iteration}")
+      print(f"#Procs: {num_procs}, TP: {exe_json['tensor_par']}, PP: {exe_json['pipeline_par']}, DP: {exe_json['data_par']}")
+      print(f"Mem needed: {stats['proc_mem_tier1_cap_req']/1e9}\nAI: {stats['arithmetic_intensity']['matrix']}")
+      print(f"Memory BW: {optim_config['system']['mem1']['GBps']}\nMemory Cap: {optim_config['system']['mem1']['GiB']}\n")
+      num_procs_list.append(num_procs)
     
+    plt.plot(list(range(1, len(num_procs_list) + 1)), num_procs_list, marker='o')
+    plt.show()
+    sys.exit()
     # write results to output file
     model_str = optim_config["model"].split("/")[-1].split(".")[0]
     arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
@@ -207,7 +218,8 @@ class SiPAMExecution(calculon.CommandLine):
                               stats = model.get_stats_json(layers)
                               # stats = model.get_display_stats()
                               good_exe_count += 1
-                              curr = (stats['sample_rate'], exe_json, stats)
+                              # curr = (stats['sample_rate'], exe_json, stats)
+                              curr = (stats['proc_mem_tier1_cap_req'], exe_json, stats)
                               best = SiPAMExecution.update_list(best, curr, top_n)
                             except Llm.Error as ex:
                               logger = logging.getLogger()
@@ -229,11 +241,11 @@ class SiPAMExecution(calculon.CommandLine):
       good_exe_count += gec
       bad_exe_count += bec
 
-    logger.info(f'Total executions: {exe_count}')
-    logger.info(f'Good executions: {good_exe_count}')
-    logger.info(f'Bad executions: {bad_exe_count}')
-    calc_rate = exe_count / (end_time - start_time).total_seconds()
-    logger.info(f'Calculation rate: {calc_rate:.2f} calcs/sec')
+    # logger.info(f'Total executions: {exe_count}')
+    # logger.info(f'Good executions: {good_exe_count}')
+    # logger.info(f'Bad executions: {bad_exe_count}')
+    # calc_rate = exe_count / (end_time - start_time).total_seconds()
+    # logger.info(f'Calculation rate: {calc_rate:.2f} calcs/sec')
 
     output = {}
     for index, run in enumerate(best):
@@ -250,7 +262,8 @@ class SiPAMExecution(calculon.CommandLine):
       current.append(candidate)
     else:
       current.extend(candidate)
-    current.sort(reverse=True, key=lambda x: x[0])
+    # current.sort(reverse=True, key=lambda x: x[0]) # sort based on decreasing sample rate
+    current.sort(key=lambda x: x[0]) # sort based on increasing memory required
     return current[:quantity]
   
   @staticmethod
@@ -289,11 +302,11 @@ class SiPAMExecution(calculon.CommandLine):
     ai = model.get_arithmetic_intensity()
     ai_matrix = ai['matrix']
     # ai_vector = ai['vector']
-    ai_total = ai['total']
+    # ai_total = ai['total']
     
     # req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
     # req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
-    req_mem_bw_per_gpu_GBps = ai_total / ai_matrix / 1e9
+    req_mem_bw_per_gpu_GBps = flops_matrix / ai_matrix / 1e9
     num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
     per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
     per_gpu_mem_cap_GB = num_req_mu_per_gpu * syst.get_mem1_capacity() / (1024**3)

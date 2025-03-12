@@ -48,7 +48,7 @@ class Llm:
       p += 3 * self.attn_heads * self.attn_size + self.hidden  # biases Attn
       p += 2 * 2 * self.hidden                                 # layer norm
       p *= self.num_blocks                                     # per each block
-      p += (51200 + self.seq_size) * self.hidden               # embeddings
+      p += (51200 + self.seq_size) * self.hidden               # embeddings, 51200 is the vocabulary size
       return p
 
   class Execution:
@@ -516,7 +516,8 @@ class Llm:
       'compute_efficiency',
       'system_efficiency',
       'total_efficiency',
-      'sample_rate')
+      'sample_rate',
+      "arithmetic_intensity")
 
   def get_stats_values(self):
     assert self._executed
@@ -621,7 +622,8 @@ class Llm:
       self.get_compute_efficiency(),
       self.get_system_efficiency(),
       self.get_total_efficiency(),
-      self.get_sample_rate())
+      self.get_sample_rate(),
+      self.get_arithmetic_intensity())
 
   def get_stats_json(self, include_layers):
     assert self._executed
@@ -2343,10 +2345,12 @@ class Llm:
     mem_B = 0
     mem_B += self.get_weight_space()
     mem_B += self.get_act_space()
-    if self.exe.training: mem_B += self.get_act_checkpoint_size()
-    if self.exe.training: mem_B += self.get_weight_grad_space()
-    if self.exe.training: mem_B += self.get_optimizer_space()
-    if self.exe.training: mem_B += self.get_act_grad_space()
+    if self.exe.training: 
+      mem_B += self.get_act_checkpoint_size()
+      mem_B += self.get_weight_grad_space()
+      mem_B += self.get_optimizer_space()
+      mem_B += self.get_act_grad_space()
+    # assert(mem_B == self.get_mem_tier1_cap_req()), f"{mem_B},{self.get_mem_tier1_cap_req()}"
     return mem_B
   
   def _set_mem(self):
