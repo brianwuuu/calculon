@@ -112,6 +112,7 @@ class System:
       net.set_bandwidth(bw_GBps)
 
   def compute_offload_time(self, size):
+    if size == 0: return 0
     return size / self.mem2.throughput(size)
 
   def get_processing_time(self, flops_time, mem_time):

@@ -218,8 +218,8 @@ class SiPAMExecution(calculon.CommandLine):
                               stats = model.get_stats_json(layers)
                               # stats = model.get_display_stats()
                               good_exe_count += 1
-                              # curr = (stats['sample_rate'], exe_json, stats)
-                              curr = (stats['proc_mem_tier1_cap_req'], exe_json, stats)
+                              curr = (stats['sample_rate'], exe_json, stats)
+                              # curr = (stats['proc_mem_tier1_cap_req'], exe_json, stats)
                               best = SiPAMExecution.update_list(best, curr, top_n)
                             except Llm.Error as ex:
                               logger = logging.getLogger()
@@ -262,8 +262,8 @@ class SiPAMExecution(calculon.CommandLine):
       current.append(candidate)
     else:
       current.extend(candidate)
-    # current.sort(reverse=True, key=lambda x: x[0]) # sort based on decreasing sample rate
-    current.sort(key=lambda x: x[0]) # sort based on increasing memory required
+    current.sort(reverse=True, key=lambda x: x[0]) # sort based on decreasing sample rate
+    # current.sort(key=lambda x: x[0]) # sort based on increasing memory required
     return current[:quantity]
   
   @staticmethod
@@ -313,8 +313,12 @@ class SiPAMExecution(calculon.CommandLine):
 
     syst.set_mem1_bandwidth(per_gpu_mem_bw_GBps)
     syst.set_mem1_capacity(per_gpu_mem_cap_GB)
+    syst.set_mem2_bandwidth(0)
+    syst.set_mem2_capacity(0)
     optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
     optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
+    optim_config["system"]["mem2"]["GiB"] = 0
+    optim_config["system"]["mem2"]["GBps"] = 0
     
     num_procs = int(np.ceil(model.get_total_req_mem_cap() / (1024**3) / per_gpu_mem_cap_GB))
     # num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
