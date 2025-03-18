@@ -19,7 +19,7 @@ from table import get_mem_info, get_workload_info, get_cu_info
 ####################################################################################################
 
 print("[Analysis] Start ...")
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = "/path/to/calculon/"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"

@@ -2,7 +2,7 @@ import copy
 import utilities
 import itertools
 
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = "/path/to/calculon/"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
