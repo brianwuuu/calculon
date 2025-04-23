@@ -68,7 +68,7 @@ class SiPAMExecution(calculon.CommandLine):
       exe = Llm.Execution.from_json(exe_json)
       model = Llm(app, logger)
       model.compile(syst, exe)
-      model.run(syst)
+      model.run_optim(syst)
       
       # Runs SiPAM optimization and update system params
       num_procs, syst, optim_config = SiPAMExecution.optimize(model, syst, optim_config)
@@ -158,11 +158,9 @@ class SiPAMExecution(calculon.CommandLine):
 
     has_mem2 = False # syst.mem2.capacity > 0
 
-    can_redo = Llm.can_redo_ag(tensor_par_comm_type,
-                               activation_recompute)
+    can_redo = Llm.can_redo_ag(tensor_par_comm_type, activation_recompute)
     for seq_par_ag_redo in pick(can_redo, [True, False], [False]):
-      for data_par_overlap in pick(dp>1 and allow_dp_overlap, [True, False],
-                                   [False]):
+      for data_par_overlap in pick(dp>1 and allow_dp_overlap, [True, False], [False]):
         for tensor_par_overlap in pick(tp>1 and allow_tp_overlap,
                                        ['none', 'ring', 'pipe'], ['none']):
           for weight_offload in pick(has_mem2, [True, False], [False]):
@@ -171,8 +169,7 @@ class SiPAMExecution(calculon.CommandLine):
             else:
               activations_offloads = [True, False]
             for activations_offload in activations_offloads:
-              for optimizer_offload in pick(has_mem2, [True, False],
-                                            [False]):
+              for optimizer_offload in pick(has_mem2, [True, False], [False]):
                 for fused_act in fused_acts:
                   for microbatch_size in Llm.get_valid_microbatch_sizes(
                       app.seq_size, tp, dp, batch_size, pp):
@@ -211,10 +208,8 @@ class SiPAMExecution(calculon.CommandLine):
                             try:
                               logger = logging.Logger('sub')
                               model = Llm(app, logger)
-                              model.compile(
-                                syst,
-                                Llm.Execution.from_json(exe_json))
-                              model.run(syst)
+                              model.compile(syst, Llm.Execution.from_json(exe_json))
+                              model.run_optim(syst)
                               stats = model.get_stats_json(layers)
                               # stats = model.get_display_stats()
                               good_exe_count += 1
@@ -227,7 +222,7 @@ class SiPAMExecution(calculon.CommandLine):
                               bad_exe_count += 1
                     if mbs_break and good_exe_count == mbs_break_good:
                       break
-    return (best, exe_count, good_exe_count, bad_exe_count, tp, pp)
+    return (best, exe_count, good_exe_count, bad_exe_count, tp, pp, dp)
 
   @staticmethod
   def process_results(searches, logger, start_time, end_time):
@@ -235,18 +230,12 @@ class SiPAMExecution(calculon.CommandLine):
     exe_count = 0
     good_exe_count = 0
     bad_exe_count = 0
-    for cbest, ec, gec, bec, tp, pp in searches:
+    for cbest, ec, gec, bec, tp, pp, dp in searches:
       best = SiPAMExecution.update_list(best, cbest, 1)
       exe_count += ec
       good_exe_count += gec
       bad_exe_count += bec
-
-    # logger.info(f'Total executions: {exe_count}')
-    # logger.info(f'Good executions: {good_exe_count}')
-    # logger.info(f'Bad executions: {bad_exe_count}')
-    # calc_rate = exe_count / (end_time - start_time).total_seconds()
-    # logger.info(f'Calculation rate: {calc_rate:.2f} calcs/sec')
-
+      
     output = {}
     for index, run in enumerate(best):
       _, execution, stats = run
@@ -320,9 +309,9 @@ class SiPAMExecution(calculon.CommandLine):
     optim_config["system"]["mem2"]["GiB"] = 0
     optim_config["system"]["mem2"]["GBps"] = 0
     
-    num_procs = int(np.ceil(model.get_total_req_mem_cap() / (1024**3) / per_gpu_mem_cap_GB))
-    # num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
-    num_procs = (num_procs + 1) // 2 * 2 # nearest multiple of 2
+    num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
+    num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
+    # num_procs = 64 # (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
 
     min_num_mem_pic_per_gpu = 1
     max_num_mem_pic_per_gpu = optim_config["system"]["max_num_mem_pic_per_gpu"]

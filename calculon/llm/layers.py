@@ -410,7 +410,7 @@ class Layer:
     )
     return self.processing_time
 
-  def compute_processing_time_v2(self, stage, mem_tier=[("mem1",1e6)]):
+  def compute_processing_time_v2(self, stage, mem_tier=[("mem1",0)]):
     self.processing_time =  self.sys.get_processing_time(
       self.compute_flops_time(stage),
       self.compute_mem_time_v2(stage, mem_tier)
