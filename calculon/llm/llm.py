@@ -2528,7 +2528,7 @@ class Llm:
     ai["matrix"] = flops["matrix"] / mem_bytes["matrix"]
     if self.exe.training: ai["vector"] = flops["vector"] / mem_bytes["vector"]
     ai["total"] = flops["total"] / mem_bytes["total"]
-    ai["perc"] = np.percentile(ai["all"], 95)
+    ai["perc"] = np.nanpercentile(ai["all"], 20)
     ai["mean"] = np.nanmean(ai["all"])
     ai["median"] = np.nanmedian(ai["all"])
     return ai

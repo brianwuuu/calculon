@@ -124,10 +124,8 @@ class SiPAMExecution(calculon.CommandLine):
   @staticmethod
   def build_params(num_procs:int, app:Llm.Application, syst:System, optim_config:dict):
     params = []
-    for tp in Llm.get_all_tensor_parallelisms(
-        num_procs, app.hidden, app.attn_heads):
-      for pp in Llm.get_all_pipeline_parallelisms(
-          num_procs, tp, app.num_blocks):
+    for tp in Llm.get_all_tensor_parallelisms(num_procs, app.hidden, app.attn_heads):
+      for pp in Llm.get_all_pipeline_parallelisms(num_procs, tp, app.num_blocks):
         dp = Llm.get_data_parallelism(num_procs, tp, pp)  
         for ppint in Llm.get_valid_pipeline_interleavings(app.num_blocks, pp):
           batch_size = SiPAMExecution.get_batch_size(dp, optim_config["max_batch_size"])
@@ -288,14 +286,17 @@ class SiPAMExecution(calculon.CommandLine):
   def optimize(model: Llm, syst: System, optim_config: dict):
     flops_matrix = syst.get_matrix_flops(optim_config["datatype"])
     flops_vector = syst.get_vector_flops(optim_config["datatype"])
-    ai = model.get_arithmetic_intensity()
-    ai_matrix = ai['matrix']
-    # ai_vector = ai['vector']
-    # ai_total = ai['total']
+    ai_list = model.get_arithmetic_intensity()
+    ai_matrix = ai_list['matrix']
+    # ai_vector = ai_list['vector']
+    # ai_total = ai_list['total']
+    ai_median = ai_list['median']
+    ai_mean = ai_list['mean']
+    ai_perc = ai_list['perc']
+    ai_min = min(ai_matrix, ai_mean, ai_perc)
     
-    # req_mem_bw_per_gpu_GBps = max(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
-    # req_mem_bw_per_gpu_GBps = min(flops_matrix / ai_matrix, flops_vector / ai_vector) / 1e9
-    req_mem_bw_per_gpu_GBps = flops_matrix / ai_matrix / 1e9
+    req_mem_bw_per_gpu_GBps = flops_matrix / ai_min / 1e9
+    # req_mem_bw_per_gpu_GBps = flops_matrix / ai_mean / 1e9
     num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
     per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
     per_gpu_mem_cap_GB = num_req_mu_per_gpu * syst.get_mem1_capacity() / (1024**3)
@@ -311,7 +312,7 @@ class SiPAMExecution(calculon.CommandLine):
     
     num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
     num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
-    # num_procs = 64 # (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
+    # num_procs = (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
 
     min_num_mem_pic_per_gpu = 1
     max_num_mem_pic_per_gpu = optim_config["system"]["max_num_mem_pic_per_gpu"]
