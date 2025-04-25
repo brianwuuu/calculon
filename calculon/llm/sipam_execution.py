@@ -159,8 +159,7 @@ class SiPAMExecution(calculon.CommandLine):
     can_redo = Llm.can_redo_ag(tensor_par_comm_type, activation_recompute)
     for seq_par_ag_redo in pick(can_redo, [True, False], [False]):
       for data_par_overlap in pick(dp>1 and allow_dp_overlap, [True, False], [False]):
-        for tensor_par_overlap in pick(tp>1 and allow_tp_overlap,
-                                       ['none', 'ring', 'pipe'], ['none']):
+        for tensor_par_overlap in pick(tp>1 and allow_tp_overlap, ['none', 'ring', 'pipe'], ['none']):
           for weight_offload in pick(has_mem2, [True, False], [False]):
             if activation_recompute == 'full' or not has_mem2:
               activations_offloads = [False]

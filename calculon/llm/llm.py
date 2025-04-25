@@ -506,6 +506,8 @@ class Llm:
       'fw_offload_exposed_time',
       'bw_offload_exposed_time',
       'total_time',
+      'total_time_roofline',
+      'total_time_aggregate',
       # 'act_offload_bw_req',
       # 'weight_offload_bw_req',
       # 'optim_offload_bw_req',
@@ -514,9 +516,17 @@ class Llm:
       'proc_mem_tier2_cap_req',
       'useful_flops',
       'compute_efficiency',
+      'compute_efficiency_rl',
+      'compute_efficiency_aggregate',
       'system_efficiency',
+      'system_efficiency_roofline',
+      'system_efficiency_aggregate',
       'total_efficiency',
+      'total_efficiency_roofline',
+      'total_efficiency_aggregate',
       'sample_rate',
+      'sample_rate_roofline',
+      'sample_rate_aggregate',
       "arithmetic_intensity")
 
   def get_stats_values(self):
@@ -612,6 +622,8 @@ class Llm:
       self.get_fw_offload_overhead(),
       self.get_bw_offload_overhead(),
       self.get_total_time(),
+      self.get_total_time_rl(),
+      self.get_total_aggregate_time(),
       # self.get_act_offload_bw_req(),
       # self.get_weight_offload_bw_req(),
       # self.get_optim_offload_bw_req(),
@@ -620,9 +632,17 @@ class Llm:
       self.get_mem_tier2_cap_req(),
       self.get_useful_flops(),
       self.get_compute_efficiency(),
+      self.get_compute_efficiency_rl(),
+      self.get_compute_efficiency_aggregate(),
       self.get_system_efficiency(),
+      self.get_system_efficiency_rl(),
+      self.get_system_efficiency_aggregate(),
       self.get_total_efficiency(),
+      self.get_total_efficiency_rl(),
+      self.get_total_efficiency_aggregate(),
       self.get_sample_rate(),
+      self.get_sample_rate_rl(),
+      self.get_sample_rate_aggregate(),
       self.get_arithmetic_intensity())
 
   def get_stats_json(self, include_layers):
@@ -1434,6 +1454,49 @@ class Llm:
     if self.exe.activation_recompute == 'full':
       self._block_act_storage_space = 0
 
+    """
+      BW Modification April 24, 2025
+      Aggregate all compute_processing_time()
+      Assuming a single memory tier?
+    """
+    # Aggregate fw time under roofline model
+    self._block_fw_time_rl = self.sys.get_processing_time(
+      self._block_fw_flops / self.sys.get_matrix_throughput(self._block_fw_flops),
+      self._block_fw_mem_accessed / self.sys.get_mem1_throughput(self._block_fw_mem_accessed) + self.sys.get_mem1_latency
+    )
+    
+    # Aggregate re time under roofline model
+    self._block_re_time_rl = self.sys.get_processing_time(
+      self._block_re_flops / self.sys.get_matrix_throughput(self._block_re_flops),
+      self._block_re_mem_accessed / self.sys.get_mem1_throughput(self._block_re_mem_accessed) + self.sys.get_mem1_latency
+    )
+    
+    # Aggregate agrad time under roofline model
+    self._block_agrad_time_rl = self.sys.get_processing_time(
+      self._block_agrad_flops / self.sys.get_matrix_throughput(self._block_agrad_flops),
+      self._block_agrad_mem_accessed / self.sys.get_mem1_throughput(self._block_agrad_mem_accessed) + self.sys.get_mem1_latency
+    )
+    
+    # Aggregate wgrad time under roofline model
+    self._block_wgrad_time_rl = self.sys.get_processing_time(
+      self._block_wgrad_flops / self.sys.get_matrix_throughput(self._block_wgrad_flops),
+      self._block_wgrad_mem_accessed / self.sys.get_mem1_throughput(self._block_wgrad_mem_accessed) + self.sys.get_mem1_latency
+    )
+    
+    # Aggregate optim time under roofline model
+    self._block_otim_time_rl = self.sys.get_processing_time(
+      self._block_optim_flops / self.sys.get_matrix_throughput(self._block_optim_flops),
+      self._block_optim_mem_accessed / self.sys.get_mem1_throughput(self._block_optim_mem_accessed) + self.sys.get_mem1_latency
+    )
+    
+    # Aggregate (all) flops under roofline model
+    total_flops = self._block_fw_flops + self._block_re_flops + self._block_agrad_flops + self._block_wgrad_flops + self._block_optim_flops
+    total_mem = self._block_fw_mem_accessed + self._block_re_mem_accessed + self._block_agrad_mem_accessed + self._block_wgrad_mem_accessed + self._block_optim_mem_accessed
+    self.__block_roofline_time = self.sys.get_processing_time(
+      total_flops / self.sys.get_matrix_throughput(total_flops),
+      total_mem / self.sys.get_mem1_throughput(total_mem) + self.sys.get_mem1_latency
+    )
+    
     # Sets the PP communication operation size
     if self.exe.pipeline_par > 1:
       if self.exe._pipeline_par_rs_ag:
@@ -1502,6 +1565,18 @@ class Llm:
     self._optim_mem_accessed = self._blocks_per_proc * self._block_optim_mem_accessed
     self._optim_mem_time = self._blocks_per_proc * self._block_optim_mem_time
     self._optim_time = self._blocks_per_proc * self._block_optim_time
+    
+    """
+      BW Modification April 24, 2025
+      Aggregate all compute_processing_time()
+      Assuming a single memory tier?
+    """
+    self._fw_time_rl = mult * self._block_fw_time_rl
+    self._re_time_rl = mult * self._block_re_time_rl
+    self._agrad_time_rl = mult * self._block_agrad_time_rl
+    self._wgrad_time_rl = mult * self._block_wgrad_time_rl
+    self._optim_time_rl = mult * self._block_optim_time_rl
+    self._aggregate_rl_time = mult * self.__block_roofline_time
 
     # These TP numbers are for total times for all blocks in all chunks
     tp_fw_comm_time = self.exe._num_microbatches * self._chunks_per_proc * (
@@ -2110,6 +2185,9 @@ class Llm:
 
   def get_fw_time(self):
     return self._fw_time
+  
+  def get_fw_time_rl(self):
+    return self._fw_time_rl
 
   def get_fw_offload_time(self):
     return self.sys.compute_offload_time(self._get_fw_offload_size())
@@ -2122,9 +2200,15 @@ class Llm:
 
   def get_bw_time(self):
     return self._agrad_time + self._wgrad_time
+  
+  def get_bw_time_rl(self):
+    return self._agrad_time_rl + self._wgrad_time_rl
 
   def get_optim_step_time(self):
     return self._optim_time
+  
+  def get_optim_step_time_rl(self):
+    return self._optim_time_rl
 
   def get_bw_offload_time(self):
     if self.exe.training:
@@ -2143,6 +2227,9 @@ class Llm:
 
   def get_recompute_time(self):
     return self._re_time
+  
+  def get_recompute_time_rl(self):
+    return self._re_time_rl
 
   def get_recomm_exposed_time(self):
     if self.exe.training:
@@ -2202,6 +2289,31 @@ class Llm:
     time += self.get_pp_comm_exposed_time()
     time += self.get_dp_comm_exposed_time()
     return time
+  
+  def get_total_time_rl(self):
+    time = self.get_fw_time_rl()
+    time += self.get_bw_time_rl()
+    time += self.get_optim_step_time_rl()
+    time += self.get_fw_offload_overhead()
+    time += self.get_bw_offload_overhead()
+    time += self.get_recompute_time_rl()
+    time += self.get_recomm_exposed_time()
+    time += self.get_bubble_time()
+    time += self.get_tp_comm_exposed_time()
+    time += self.get_pp_comm_exposed_time()
+    time += self.get_dp_comm_exposed_time()
+    return time
+  
+  def get_total_aggregate_time(self):
+    time = self._aggregate_rl_time
+    time += self.get_fw_offload_overhead()
+    time += self.get_bw_offload_overhead()
+    time += self.get_recomm_exposed_time()
+    time += self.get_bubble_time()
+    time += self.get_tp_comm_exposed_time()
+    time += self.get_pp_comm_exposed_time()
+    time += self.get_dp_comm_exposed_time()
+    return time
 
   def get_useful_flops(self):
     total_flops = sum(
@@ -2220,18 +2332,52 @@ class Llm:
       total_flops / self.sys.matrix.flops(self.exe.datatype)
     return perfect_time / compute_time
 
+  def get_compute_efficiency_rl(self):
+    total_flops = self.get_useful_flops()
+    compute_time = self.get_fw_time_rl + self.get_bw_time_rl() + \
+      self.get_optim_step_time_rl()
+    perfect_time = self._blocks_per_proc * self.exe._num_microbatches * \
+      total_flops / self.sys.matrix.flops(self.exe.datatype)
+    return perfect_time / compute_time
+  
+  def get_compute_efficiency_aggregate(self):
+    total_flops = self.get_useful_flops()
+    compute_time = self._aggregate_rl_time
+    perfect_time = self._blocks_per_proc * self.exe._num_microbatches * \
+      total_flops / self.sys.matrix.flops(self.exe.datatype)
+    return perfect_time / compute_time
+  
   def get_system_efficiency(self):
     compute_time = self.get_fw_time() + self.get_bw_time() + \
       self.get_optim_step_time()
-    # print("\n\n\n\n")
-    # print(compute_time, self.get_total_time())
     return compute_time / self.get_total_time()
+  
+  def get_system_efficiency_rl(self):
+    compute_time = self.get_fw_time_rl() + self.get_bw_time_rl() + \
+      self.get_optim_step_time_rl()
+    return compute_time / self.get_total_time_rl()
+  
+  def get_system_efficiency_aggregate(self):
+    compute_time = self._aggregate_rl_time
+    return compute_time / self.get_total_aggregate_time()
 
   def get_total_efficiency(self):
     total_flops = self.get_useful_flops()
     perfect_time = self._blocks_per_proc * self.exe._num_microbatches * \
       total_flops / self.sys.matrix.flops(self.exe.datatype)
     return perfect_time / self.get_total_time()
+  
+  def get_total_efficiency_rl(self):
+    total_flops = self.get_useful_flops()
+    perfect_time = self._blocks_per_proc * self.exe._num_microbatches * \
+      total_flops / self.sys.matrix.flops(self.exe.datatype)
+    return perfect_time / self.get_total_time_rl()
+
+  def get_total_efficiency_aggregate(self):
+    total_flops = self.get_useful_flops()
+    perfect_time = self._blocks_per_proc * self.exe._num_microbatches * \
+      total_flops / self.sys.matrix.flops(self.exe.datatype)
+    return perfect_time / self.get_total_aggregate_time()
 
   def get_weight_space_min(self):
     return self._block_weight_space * 2
@@ -2510,6 +2656,12 @@ class Llm:
   def get_sample_rate(self):
     return self.exe.global_batch_size / self.get_total_time()
 
+  def get_sample_rate_rl(self):
+    return self.exe.global_batch_size / self.get_total_time_rl()
+  
+  def get_sample_rate_aggregate(self):
+    return self.exe.global_batch_size / self.get_total_aggregate_time()
+
   def get_arithmetic_intensity(self):
     flops = {"matrix":0, "vector":0, "total":0}
     mem_bytes = {"matrix":0, "vector":0, "total":0}
@@ -2568,14 +2720,24 @@ class Llm:
       f"Batch PP comm time on link: {self.get_pp_comm_link_time():.4f};\n" \
       f"Batch DP comm time on link: {self.get_dp_comm_link_time():.4f};\n" \
       f"Batch total time: {self.get_total_time():.4f};\n" \
+      f"Batch total time (roofline): {self.get_total_time_rl():.4f};\n" \
+      f"Batch total time (aggregate): {self.get_total_aggregate_time():.4f};\n" \
       f"Mem tier1 capacity requirement: " \
       f"{human_format(self.get_mem_tier1_cap_req(), 'bytes')};\n" \
       f"Mem tier2 capacity requirement: " \
       f"{human_format(self.get_mem_tier2_cap_req(), 'bytes')};\n" \
       f"Compute efficiency: {self.get_compute_efficiency()*100:.2f}%;\n" \
+      f"Compute efficiency (roofline): {self.get_compute_efficiency_rl()*100:.2f}%;\n" \
+      f"Compute efficiency (aggregate): {self.get_compute_efficiency_aggregate()*100:.2f}%;\n" \
       f"System efficiency: {self.get_system_efficiency()*100:.2f}%;\n" \
+      f"System efficiency (roofline): {self.get_system_efficiency_rl()*100:.2f}%;\n" \
+      f"System efficiency (aggregate): {self.get_system_efficiency_aggregate()*100:.2f}%;\n" \
       f"Total efficiency: {self.get_total_efficiency()*100:.2f}%;\n" \
+      f"Total efficiency (roofline): {self.get_total_efficiency_rl()*100:.2f}%;\n" \
+      f"Total efficiency (aggregate): {self.get_total_efficiency_aggregate()*100:.2f}%;\n" \
       f"Sample rate: {self.get_sample_rate():.2f};\n" \
+      f"Sample rate (roofline): {self.get_sample_rate_rl():.2f};\n" \
+      f"Sample rate (aggregate): {self.get_sample_rate_aggregate():.2f};\n" \
       f"Arithmetic Intensity: {self.get_arithmetic_intensity()};\n"
       # f"Activation offload required BW: " \
       # f"{human_format(self.get_act_offload_bw_req(), 'bandwidth')};\n" \
@@ -2618,6 +2780,8 @@ class Llm:
       "Batch PP comm time on link": self.get_pp_comm_link_time(),
       "Batch DP comm time on link": self.get_dp_comm_link_time(),
       "Batch total time": self.get_total_time(),
+      "Batch total time (roofline)": self.get_total_time_rl(),
+      "Batch total time (aggregate)": self.get_total_aggregate_time(),
       # "Activation offload required BW": human_format(self.get_act_offload_bw_req(), 'bandwidth'),
       # "Weight offload required BW": human_format(self.get_weight_offload_bw_req(), 'bandwidth'),
       # "Optimizer offload required BW": human_format(self.get_optim_offload_bw_req(), 'bandwidth'),
@@ -2628,8 +2792,17 @@ class Llm:
       "Mem tier2 capacity used": human_format(self.get_mem_tier2_cap_used(), 'bytes'),
       # "Mem tier2 BW for offload": human_format(self.get_offload_mem_bw_req(), 'bandwidth'),
       "Compute efficiency": self.get_compute_efficiency()*100,
+      "Compute efficiency (roofline)": self.get_compute_efficiency_rl()*100,
+      "Compute efficiency (aggregate)": self.get_compute_efficiency_aggregate()*100,
       "System efficiency": self.get_system_efficiency()*100,
+      "System efficiency (roofline)": self.get_system_efficiency_rl()*100,
+      "System efficiency (aggregate)": self.get_system_efficiency_aggregate()*100,
       "Total efficiency": self.get_total_efficiency()*100,
+      "Total efficiency (roofline)": self.get_total_efficiency_rl()*100,
+      "Total efficiency (aggregate)": self.get_total_efficiency_aggregate()*100,
       "Sample rate": self.get_sample_rate(),
+      "Sample rate (roofline)": self.get_sample_rate_rl(),
+      "Sample rate (aggregate)": self.get_sample_rate_aggregate(),
       "Arithmetic Intensity": self.get_arithmetic_intensity()
     }
+    

@@ -638,8 +638,7 @@ class LinearOverlapped(Layer):
       time = compute_time
       net_exposed_time = 0
     else:
-      compute_time_slowed = self.sys.get_processing_time(
-        flop_time_slowed, mem_time)
+      compute_time_slowed = self.sys.get_processing_time(flop_time_slowed, mem_time)
       # Tiled time computed as fraction of full time, to model high effective
       # throughput when processing many consequitive tiles
       flop_tile = flop_time / self.num_tiles
