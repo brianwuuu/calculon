@@ -1462,31 +1462,31 @@ class Llm:
     # Aggregate fw time under roofline model
     self._block_fw_time_rl = self.sys.get_processing_time(
       self._block_fw_flops / self.sys.get_matrix_throughput(self._block_fw_flops),
-      self._block_fw_mem_accessed / self.sys.get_mem1_throughput(self._block_fw_mem_accessed) + self.sys.get_mem1_latency
+      self._block_fw_mem_accessed / self.sys.get_mem1_throughput(self._block_fw_mem_accessed) + self.sys.get_mem1_latency()
     )
     
     # Aggregate re time under roofline model
     self._block_re_time_rl = self.sys.get_processing_time(
       self._block_re_flops / self.sys.get_matrix_throughput(self._block_re_flops),
-      self._block_re_mem_accessed / self.sys.get_mem1_throughput(self._block_re_mem_accessed) + self.sys.get_mem1_latency
+      self._block_re_mem_accessed / self.sys.get_mem1_throughput(self._block_re_mem_accessed) + self.sys.get_mem1_latency()
     )
     
     # Aggregate agrad time under roofline model
     self._block_agrad_time_rl = self.sys.get_processing_time(
       self._block_agrad_flops / self.sys.get_matrix_throughput(self._block_agrad_flops),
-      self._block_agrad_mem_accessed / self.sys.get_mem1_throughput(self._block_agrad_mem_accessed) + self.sys.get_mem1_latency
+      self._block_agrad_mem_accessed / self.sys.get_mem1_throughput(self._block_agrad_mem_accessed) + self.sys.get_mem1_latency()
     )
     
     # Aggregate wgrad time under roofline model
     self._block_wgrad_time_rl = self.sys.get_processing_time(
       self._block_wgrad_flops / self.sys.get_matrix_throughput(self._block_wgrad_flops),
-      self._block_wgrad_mem_accessed / self.sys.get_mem1_throughput(self._block_wgrad_mem_accessed) + self.sys.get_mem1_latency
+      self._block_wgrad_mem_accessed / self.sys.get_mem1_throughput(self._block_wgrad_mem_accessed) + self.sys.get_mem1_latency()
     )
     
     # Aggregate optim time under roofline model
-    self._block_otim_time_rl = self.sys.get_processing_time(
+    self._block_optim_time_rl = self.sys.get_processing_time(
       self._block_optim_flops / self.sys.get_matrix_throughput(self._block_optim_flops),
-      self._block_optim_mem_accessed / self.sys.get_mem1_throughput(self._block_optim_mem_accessed) + self.sys.get_mem1_latency
+      self._block_optim_mem_accessed / self.sys.get_mem1_throughput(self._block_optim_mem_accessed) + self.sys.get_mem1_latency()
     )
     
     # Aggregate (all) flops under roofline model
@@ -1494,7 +1494,7 @@ class Llm:
     total_mem = self._block_fw_mem_accessed + self._block_re_mem_accessed + self._block_agrad_mem_accessed + self._block_wgrad_mem_accessed + self._block_optim_mem_accessed
     self.__block_roofline_time = self.sys.get_processing_time(
       total_flops / self.sys.get_matrix_throughput(total_flops),
-      total_mem / self.sys.get_mem1_throughput(total_mem) + self.sys.get_mem1_latency
+      total_mem / self.sys.get_mem1_throughput(total_mem) + self.sys.get_mem1_latency()
     )
     
     # Sets the PP communication operation size
@@ -2334,7 +2334,7 @@ class Llm:
 
   def get_compute_efficiency_rl(self):
     total_flops = self.get_useful_flops()
-    compute_time = self.get_fw_time_rl + self.get_bw_time_rl() + \
+    compute_time = self.get_fw_time_rl() + self.get_bw_time_rl() + \
       self.get_optim_step_time_rl()
     perfect_time = self._blocks_per_proc * self.exe._num_microbatches * \
       total_flops / self.sys.matrix.flops(self.exe.datatype)
