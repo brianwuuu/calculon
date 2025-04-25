@@ -1219,9 +1219,9 @@ class Llm:
       self._block_fw_flops += layer.get_fw_flops()
       self._block_fw_flops_time += layer.compute_flops_time("fw")
       self._block_fw_mem_accessed += layer.get_fw_mem_accessed()
-      self._block_fw_mem_time += layer.compute_mem_time_v2("fw", 
+      self._block_fw_mem_time += layer.compute_mem_time_tier("fw", 
         self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else [("mem1",0)])
-      self._block_fw_time += layer.compute_processing_time_v2("fw",
+      self._block_fw_time += layer.compute_processing_time_tier("fw",
         self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else [("mem1",0)])
       self._baseblock_fw_tp_size += layer.get_comm_bytes("fw",
         baseblock=True)
@@ -1246,7 +1246,7 @@ class Llm:
           self._block_re_mem_accessed += self._block_fw_mem_accessed
           self._block_re_mem_time += self._block_fw_mem_time
           # self._block_re_time += layer.compute_processing_time("fw")
-          self._block_re_time += layer.compute_processing_time_v2("fw",
+          self._block_re_time += layer.compute_processing_time_tier("fw",
             self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else [("mem1",0)])
         if layer.get_recomm_flag():
           self._baseblock_recomm_size += layer.get_comm_bytes("wgrad",
@@ -1265,10 +1265,10 @@ class Llm:
         self._block_agrad_flops_time += layer.compute_flops_time("agrad")
         self._block_agrad_mem_accessed += layer.get_agrad_mem_accessed()
         # self._block_agrad_mem_time += layer.compute_mem_time("agrad")
-        self._block_agrad_mem_time += layer.compute_mem_time_v2("agrad", 
+        self._block_agrad_mem_time += layer.compute_mem_time_tier("agrad", 
           self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else [("mem1",0)])
         # self._block_agrad_time += layer.compute_processing_time("agrad")
-        self._block_agrad_time += layer.compute_processing_time_v2("agrad",
+        self._block_agrad_time += layer.compute_processing_time_tier("agrad",
           self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else [("mem1",0)])
         self._baseblock_agrad_tp_size += layer.get_comm_bytes("agrad",
           baseblock=True)
@@ -1290,19 +1290,19 @@ class Llm:
         self._block_wgrad_flops_time += layer.compute_flops_time("wgrad")
         self._block_wgrad_mem_accessed += layer.get_wgrad_mem_accessed()
         # self._block_wgrad_mem_time += layer.compute_mem_time("wgrad")
-        self._block_wgrad_mem_time += layer.compute_mem_time_v2("wgrad", 
+        self._block_wgrad_mem_time += layer.compute_mem_time_tier("wgrad", 
           self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else [("mem1",0)])
         # self._block_wgrad_time += layer.compute_processing_time("wgrad")
-        self._block_wgrad_time += layer.compute_processing_time_v2("wgrad",
+        self._block_wgrad_time += layer.compute_processing_time_tier("wgrad",
           self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else [("mem1",0)])
         self._block_optim_flops += layer.get_optim_step_flops()
         self._block_optim_flops_time += layer.compute_flops_time("optim")
         self._block_optim_mem_accessed += layer.get_optim_step_mem_accessed()
         # self._block_optim_mem_time += layer.compute_mem_time("optim")
-        self._block_optim_mem_time += layer.compute_mem_time_v2("optim", 
+        self._block_optim_mem_time += layer.compute_mem_time_tier("optim", 
           self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else [("mem1",0)])
         # self._block_optim_time += layer.compute_processing_time("optim")
-        self._block_optim_time += layer.compute_processing_time_v2("optim",
+        self._block_optim_time += layer.compute_processing_time_tier("optim",
           self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else [("mem1",0)])
 
       # Accumulate space requirements per block
@@ -1360,7 +1360,7 @@ class Llm:
       # self.log.debug("%s %s %.3e", layer.name, 'FW time:',
       #                layer.compute_processing_time("fw"))
       self.log.debug("%s %s %.3e", layer.name, 'FW time:', 
-                     layer.compute_processing_time_v2("fw", self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else [("mem1", 1e6)]) )
+                     layer.compute_processing_time_tier("fw", self.stage_to_mem_map['fw'] if 'fw' in self.stage_to_mem_map else [("mem1", 1e6)]) )
       self.log.debug("%s %s %s", layer.name, 'BW flops:',
                      human_format(
                       layer.get_agrad_flops() + layer.get_wgrad_flops(),
@@ -1395,8 +1395,8 @@ class Llm:
       #                layer.compute_processing_time("agrad") +
       #                layer.compute_processing_time("wgrad"))
       self.log.debug("%s %s %.3e", layer.name, 'BW time:',
-                     layer.compute_processing_time_v2("agrad", self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else [("mem1", 1e6)]) +
-                     layer.compute_processing_time_v2("wgrad", self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else [("mem1", 1e6)]) )
+                     layer.compute_processing_time_tier("agrad", self.stage_to_mem_map['agrad'] if 'agrad' in self.stage_to_mem_map else [("mem1", 1e6)]) +
+                     layer.compute_processing_time_tier("wgrad", self.stage_to_mem_map['wgrad'] if 'wgrad' in self.stage_to_mem_map else [("mem1", 1e6)]) )
       self.log.debug("%s %s %s", layer.name, 'Recomm baseblock comm tile size:',
                      human_format(layer.get_comm_tile("wgrad", baseblock=True),
                      'bytes'))
@@ -1422,7 +1422,7 @@ class Llm:
       # self.log.debug("%s %s %.3e", layer.name, 'Optim time:',
       #                layer.compute_processing_time("optim"))
       self.log.debug("%s %s %.3e", layer.name, 'Optim time:',
-                     layer.compute_processing_time_v2("optim",self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else [("mem1", 1e6)]) )
+                     layer.compute_processing_time_tier("optim",self.stage_to_mem_map['optim'] if 'optim' in self.stage_to_mem_map else [("mem1", 1e6)]) )
       self.log.debug("%s %s %.3e", layer.name, 'Recompute:',
                      layer.get_recompute_flag())
       self.log.debug("%s %s %s", layer.name, 'Recompute mem saving:',
@@ -2680,9 +2680,10 @@ class Llm:
     ai["matrix"] = flops["matrix"] / mem_bytes["matrix"]
     if self.exe.training: ai["vector"] = flops["vector"] / mem_bytes["vector"]
     ai["total"] = flops["total"] / mem_bytes["total"]
-    ai["perc"] = np.nanpercentile(ai["all"], 20)
+    ai["perc"] = np.nanpercentile(ai["all"], 50)
     ai["mean"] = np.nanmean(ai["all"])
     ai["median"] = np.nanmedian(ai["all"])
+    ai['all'] = []
     return ai
   
   def display_stats(self):

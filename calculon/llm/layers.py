@@ -358,7 +358,7 @@ class Layer:
       raise Exception(f'Bad compute stage : {stage}')
     return mem / self.sys.get_mem1_throughput(mem) + self.sys.get_mem1_latency()
 
-  def compute_mem_time_v2(self, stage, mem_tier):
+  def compute_mem_time_tier(self, stage, mem_tier):
     if stage == "fw":
       mem = self.get_fw_mem_accessed()
     elif stage == "agrad":
@@ -410,12 +410,12 @@ class Layer:
     )
     return self.processing_time
 
-  def compute_processing_time_v2(self, stage, mem_tier=[("mem1",0)]):
+  def compute_processing_time_tier(self, stage, mem_tier=[("mem1",0)]):
     self.processing_time =  self.sys.get_processing_time(
       self.compute_flops_time(stage),
-      self.compute_mem_time_v2(stage, mem_tier)
+      self.compute_mem_time_tier(stage, mem_tier)
     )
-    # print("flops" if self.compute_flops_time(stage) < self.compute_mem_time_v2(stage, mem_tier) else "mem")
+    # print("flops" if self.compute_flops_time(stage) < self.compute_mem_time_tier(stage, mem_tier) else "mem")
     return self.processing_time
 
 # We can factor all layers peculiarities and layer-wise optimizations by
@@ -628,10 +628,10 @@ class LinearOverlapped(Layer):
     if stage == 'optim':
       return 0
 
-  def compute_processing_time_v2(self, stage, mem_tier=[("mem1",1e6)]):
+  def compute_processing_time_tier(self, stage, mem_tier=[("mem1",1e6)]):
     flop_time = self.compute_flops_time(stage)
     flop_time_slowed = flop_time / (1 - self.net.processor_usage)
-    mem_time = self.compute_mem_time_v2(stage, mem_tier)
+    mem_time = self.compute_mem_time_tier(stage, mem_tier)
     net_time = self.compute_net_time(stage)
     compute_time = self.sys.get_processing_time(flop_time, mem_time)
     if net_time == 0:
@@ -1019,7 +1019,7 @@ class TPComm(Layer):
     split_comm = (self.tensor_par_comm_type == 'rs_ag') or (
       (self.tensor_par_comm_type == 'p2p_rs_ag') and not baseblock)
     # net_compute_time = super().compute_processing_time(stage)
-    net_compute_time = super().compute_processing_time_v2(stage)
+    net_compute_time = super().compute_processing_time_tier(stage)
     if split_comm:
       if self.conjugate:
         # ReduceScatter case
@@ -1043,14 +1043,14 @@ class TPComm(Layer):
         bw_net_time = self.net.time('all_reduce',
           self.get_comm_bytes(stage, baseblock), self.num_peers)
     if stage == 'fw':
-      return fw_net_time + net_compute_time
+      return fw_net_time # + net_compute_time
     elif stage == 'agrad':
-      return bw_net_time + net_compute_time
+      return bw_net_time # + net_compute_time
     elif stage == 'wgrad':
       # with AG Redo, we need recomm both on FW pass (not self.conjugate)
       # and BW pass (self.conjugate)
       if self.needs_recomm:
-        return fw_net_time + net_compute_time
+        return fw_net_time # + net_compute_time
       else:
         return 0
     elif stage == 'optim':
