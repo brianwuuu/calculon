@@ -15,7 +15,7 @@
  * limitations under the License.
 """
 
-import sys, os, pprint
+import sys, copy, math, pprint
 import matplotlib.pyplot as plt
 import psutil
 import datetime
@@ -29,6 +29,12 @@ from calculon.system import System
 from calculon.util import pick
 from calculon.llm import *
 from scripts import utilities
+
+def color(s:str):
+  return f"\033[31m{s}\033[0m"
+
+def dots(num:int):
+  return "."*num
 
 class SiPAMExecution(calculon.CommandLine):
   NAME = 'llm-sipam-execution'
@@ -53,62 +59,101 @@ class SiPAMExecution(calculon.CommandLine):
         update syst and exe at every step of the optimization
     """
     ## Initial setup
-    optim_config = calculon.io.read_json_file(args.config_file)
-    app = Llm.Application(calculon.io.read_json_file(optim_config["model"]))
-    syst = System(optim_config["system"])
-    exe_json = SiPAMExecution.get_init_exe(batch_size=3072, microbatch_size=4, 
-                                           datatype=optim_config["datatype"], 
-                                           worktype=optim_config["worktype"])
-
+    config = calculon.io.read_json_file(args.config_file)
+    app = Llm.Application(calculon.io.read_json_file(config["model"]))
+    syst = System(config["system"])
+  
+    worktype = config['worktype']
+    datatype = config['datatype']
+    max_batch_size = config['max_batch_size']
+    max_num_procs = config['max_num_procs']
+    exe_json = SiPAMExecution.get_init_exe(batch_size=max_batch_size, datatype=datatype, worktype=worktype)
+    
     iteration = 0
     num_procs_list = []
-    # store prev 10 results and check if curr AI is in one of them
-    while iteration < optim_config['num_iter']:
-      # Set up the model and execution
+    best_output = None
+    while iteration < config['num_iter']:
+      # Compile the model
       exe = Llm.Execution.from_json(exe_json)
       model = Llm(app, logger)
       model.compile(syst, exe)
       model.run_optim(syst)
       
       # Runs SiPAM optimization and update system params
-      num_procs, syst, optim_config = SiPAMExecution.optimize(model, syst, optim_config)
-
-      # Build the parallel search params
-      params = SiPAMExecution.build_params(num_procs, app, syst, optim_config)
+      est_num_procs, config = SiPAMExecution.optimize(model, config)
+      SiPAMExecution.set_syst_params(syst, config)
       
-      # Runs parallel searches
-      start_time = datetime.datetime.now()
-      with mp.Pool(psutil.cpu_count(logical=False)) as pool:
-        searches = pool.starmap(SiPAMExecution.search, params)
-      end_time = datetime.datetime.now()
-
-      # Combines parallel search result into one data structure
-      output = SiPAMExecution.process_results(searches, logger, start_time, end_time)
+      # Build the parallel search params and find minimum num processors to fit the model
+      num_procs, output = SiPAMExecution.find_min_num_procs(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype)
       
       # Increment loop count and update execution params
       iteration += 1
       exe_json = output[0]['execution']
       stats = output[0]['stats']
-      print(f"Iteration {iteration}")
-      print(f"#Procs: {num_procs}, TP: {exe_json['tensor_par']}, PP: {exe_json['pipeline_par']}, DP: {exe_json['data_par']}")
-      print(f"Mem needed: {stats['proc_mem_tier1_cap_req']/1e9}\nAI: {stats['arithmetic_intensity']['matrix']}")
-      print(f"Memory BW: {optim_config['system']['mem1']['GBps']}\nMemory Cap: {optim_config['system']['mem1']['GiB']}\n")
+      print(f"{dots(6)} {color(f'Iteration: {iteration}')}")
+      print(f"{dots(6)} {color('Time')}: {stats['total_time_aggregate']}s")
+      print(f"{dots(6)} {color(f'{num_procs} GPUs')} = {exe_json['tensor_par']}TP x {exe_json['pipeline_par']}PP x {exe_json['data_par']}DP")
+      print(f"{dots(6)} {color('AI')}: {stats['arithmetic_intensity']['total']}, {color('Memory BW')}: {config['system']['mem1']['GBps']}GBps")
+      print(f"{dots(6)} {color('Mem Needed')}: {stats['proc_mem_tier1_cap_req']/(1024**3)}GB, {color('Memory Cap')}: {config['system']['mem1']['GiB']}GB\n")
+      
+      best_output = output if not best_output or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate'] else best_output 
+      # Break if curr_num_procs is already in list
+      if num_procs_list and num_procs in num_procs_list: break
       num_procs_list.append(num_procs)
-    
-    plt.plot(list(range(1, len(num_procs_list) + 1)), num_procs_list, marker='o')
-    plt.show()
-    sys.exit()
+      
     # write results to output file
-    model_str = optim_config["model"].split("/")[-1].split(".")[0]
+    model_str = config["model"].split("/")[-1].split(".")[0]
     arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
-    sys_str = utilities.generate_system_file_name_string(optim_config["system"])
-    output_dir = utilities.create_output_directory(optim_config["output_file_dir"], model_str, arch_str)
+    sys_str = utilities.generate_system_file_name_string(config["system"])
+    output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str)
     output_file_name = output_dir + sys_str + ".json"
-    logger.info(f'Output: {output_file_name}')
+    logger.info(f'[SiPAM] Output: {output_file_name}')
     calculon.io.write_json_file(output[0]['stats'], output_file_name)
-
     return 0
   
+  @staticmethod
+  def find_min_num_procs(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype):
+    print(f"[SiPAM] Searching for minimum number of processors ...")
+    output = []
+    while not output:
+      print(f"[SiPAM] Current processor number = {est_num_procs}")
+      params = SiPAMExecution.build_params(est_num_procs, app, syst, max_batch_size, worktype, datatype)
+      output = SiPAMExecution.check_capacity(params)
+      if not output: est_num_procs = int(1 << est_num_procs.bit_length())
+    print(f"[SiPAM] Minimum number of processors = {output[0]['execution']['num_procs']}")
+    return est_num_procs, output
+    
+  @staticmethod
+  def find_min_num_procs_archive(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype):
+    ## Binary search to find minimum number of GPUs to fit the model
+    power_min = int(math.log2(est_num_procs))
+    power_max = int(math.log2(max_num_procs))
+    optim = None
+    output = []
+    while power_min <= power_max:
+      mid_power = (power_min + power_max) // 2
+      n_curr = 2 ** mid_power
+      params = SiPAMExecution.build_params(n_curr, app, syst, max_batch_size, worktype, datatype)
+      output = SiPAMExecution.check_capacity(params)
+      if output:
+        optim = n_curr  # it's feasible — try to find smaller
+        power_max = mid_power - 1
+      else:
+        power_min = mid_power + 1  # not enough GPUs — try more
+    assert(optim != None), "[Error] No solutions found for num_procs."
+    return optim, output
+
+  @staticmethod
+  def check_capacity(params):
+    # Runs parallel searches
+    start_time = datetime.datetime.now()
+    with mp.Pool(psutil.cpu_count(logical=False)) as pool:
+      searches = pool.starmap(SiPAMExecution.search, params)
+    end_time = datetime.datetime.now()
+
+    # Combines parallel search result into one data structure
+    output = SiPAMExecution.process_results(searches)
+    return output
   
   @staticmethod
   def get_batch_size(data_par, max_batch_size):
@@ -122,28 +167,29 @@ class SiPAMExecution(calculon.CommandLine):
         last += data_par
 
   @staticmethod
-  def build_params(num_procs:int, app:Llm.Application, syst:System, optim_config:dict):
+  def build_params(num_procs:int, app:Llm.Application, syst:System, 
+                   max_batch_size: float, worktype: str, datatype: str):
     params = []
     for tp in Llm.get_all_tensor_parallelisms(num_procs, app.hidden, app.attn_heads):
       for pp in Llm.get_all_pipeline_parallelisms(num_procs, tp, app.num_blocks):
         dp = Llm.get_data_parallelism(num_procs, tp, pp)  
         for ppint in Llm.get_valid_pipeline_interleavings(app.num_blocks, pp):
-          batch_size = SiPAMExecution.get_batch_size(dp, optim_config["max_batch_size"])
+          batch_size = SiPAMExecution.get_batch_size(dp, max_batch_size)
           if batch_size is None: continue
-          for activation_recompute in pick(optim_config["worktype"] == "training", ['full'], ['none']):
+          for activation_recompute in pick(worktype == "training", ['full'], ['none']):
             for optimizer_sharding in [False]:
               for tensor_par_comm_type in ['rs_ag']:
                 params.append(
                   (False, 1, False, num_procs,
-                  optim_config["max_batch_size"], optim_config["datatype"], optim_config["worktype"]=="training", 
+                  datatype, worktype=="training", 
                   app, syst, tp, pp, dp,
-                  ppint, batch_size, activation_recompute, optimizer_sharding,
-                  tensor_par_comm_type, [True], True,
-                  not True, not True))
+                  ppint, batch_size, activation_recompute, 
+                  optimizer_sharding, tensor_par_comm_type, 
+                  [True], True, not True, not True))
     return params
 
   @staticmethod
-  def search(debug, top_n, layers, num_procs, max_batch_size, datatype, training,
+  def search(debug, top_n, layers, num_procs, datatype, training,
              app, syst, tp, pp, dp, ppint, batch_size, activation_recompute,
              optimizer_sharding, tensor_par_comm_type, fused_acts, mbs_break,
              allow_tp_overlap, allow_dp_overlap):
@@ -208,10 +254,8 @@ class SiPAMExecution(calculon.CommandLine):
                               model.compile(syst, Llm.Execution.from_json(exe_json))
                               model.run_optim(syst)
                               stats = model.get_stats_json(layers)
-                              # stats = model.get_display_stats()
                               good_exe_count += 1
-                              curr = (stats['sample_rate'], exe_json, stats)
-                              # curr = (stats['proc_mem_tier1_cap_req'], exe_json, stats)
+                              curr = (stats['sample_rate_aggregate'], exe_json, stats)
                               best = SiPAMExecution.update_list(best, curr, top_n)
                             except Llm.Error as ex:
                               logger = logging.getLogger()
@@ -222,7 +266,7 @@ class SiPAMExecution(calculon.CommandLine):
     return (best, exe_count, good_exe_count, bad_exe_count, tp, pp, dp)
 
   @staticmethod
-  def process_results(searches, logger, start_time, end_time):
+  def process_results(searches):
     best = []
     exe_count = 0
     good_exe_count = 0
@@ -249,11 +293,10 @@ class SiPAMExecution(calculon.CommandLine):
     else:
       current.extend(candidate)
     current.sort(reverse=True, key=lambda x: x[0]) # sort based on decreasing sample rate
-    # current.sort(key=lambda x: x[0]) # sort based on increasing memory required
     return current[:quantity]
   
   @staticmethod
-  def get_init_exe(batch_size, microbatch_size, datatype, worktype):
+  def get_init_exe(batch_size, datatype, worktype):
     exe_json = {
                 'num_procs': 1,
                 'tensor_par': 1,
@@ -263,7 +306,7 @@ class SiPAMExecution(calculon.CommandLine):
                 'pipeline_par_net': 1,
                 'data_par_net': 1,
                 'batch_size': batch_size,
-                'microbatch_size': microbatch_size,
+                'microbatch_size': 1,
                 'datatype': datatype,
                 'fused_activation': True,
                 'attention_type': 'multihead',
@@ -282,33 +325,17 @@ class SiPAMExecution(calculon.CommandLine):
     return exe_json
 
   @staticmethod
-  def optimize(model: Llm, syst: System, optim_config: dict):
-    flops_matrix = syst.get_matrix_flops(optim_config["datatype"])
-    flops_vector = syst.get_vector_flops(optim_config["datatype"])
+  def optimize(model: Llm, curr_config: dict):
+    optim_config = copy.deepcopy(curr_config)
+    datatype = curr_config["datatype"]
+    flops_matrix = curr_config["system"]["matrix"][datatype]["tflops"] * 1e12
     ai_list = model.get_arithmetic_intensity()
-    ai_matrix = ai_list['matrix']
-    # ai_vector = ai_list['vector']
-    # ai_total = ai_list['total']
-    ai_median = ai_list['median']
-    ai_mean = ai_list['mean']
-    ai_perc = ai_list['perc']
-    ai_min = min(ai_matrix, ai_mean, ai_perc)
+    ai = ai_list['total'] # matrix, vector, total, mean, median
     
-    req_mem_bw_per_gpu_GBps = flops_matrix / ai_min / 1e9
-    # req_mem_bw_per_gpu_GBps = flops_matrix / ai_mean / 1e9
-    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / (syst.get_mem1_bandwidth() / 1e9)))
-    per_gpu_mem_bw_GBps = num_req_mu_per_gpu * syst.get_mem1_bandwidth() / 1e9
-    per_gpu_mem_cap_GB = num_req_mu_per_gpu * syst.get_mem1_capacity() / (1024**3)
-
-    syst.set_mem1_bandwidth(per_gpu_mem_bw_GBps)
-    syst.set_mem1_capacity(per_gpu_mem_cap_GB)
-    syst.set_mem2_bandwidth(0)
-    syst.set_mem2_capacity(0)
-    optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
-    optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
-    optim_config["system"]["mem2"]["GiB"] = 0
-    optim_config["system"]["mem2"]["GBps"] = 0
-    
+    req_mem_bw_per_gpu_GBps = flops_matrix / ai / 1e9
+    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / curr_config["system"]["mem1"]["GBps_orig"]))
+    per_gpu_mem_bw_GBps = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
+    per_gpu_mem_cap_GB = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
     num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
     num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
     # num_procs = (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
@@ -323,10 +350,22 @@ class SiPAMExecution(calculon.CommandLine):
                               int(np.ceil(per_gpu_mem_bw_GBps / per_pic_bw_GBps))))
     num_net_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_mem_pic_per_gpu)) // per_pic_length_mm # round down
     net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
-    syst.set_net_bandwidth(net_bw_GBps)
+    
+    optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
+    optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
+    optim_config["system"]["mem2"]["GiB"] = 0
+    optim_config["system"]["mem2"]["GBps"] = 0
     optim_config["system"]["networks"][0]["bandwidth"] = net_bw_GBps
     optim_config["system"]["networks"][1]["bandwidth"] = net_bw_GBps
-    return num_procs, syst, optim_config
+    return num_procs, optim_config
     
+  @staticmethod
+  def set_syst_params(syst: System, config):
+    syst.set_mem1_bandwidth(config["system"]["mem1"]["GBps"])
+    syst.set_mem1_capacity(config["system"]["mem1"]["GiB"])
+    # make sure mem2 is turned off
+    syst.set_mem2_bandwidth(0) 
+    syst.set_mem2_capacity(0)
+    syst.set_net_bandwidth(config["system"]["networks"][0]["bandwidth"])
 
 calculon.CommandLine.register(SiPAMExecution)

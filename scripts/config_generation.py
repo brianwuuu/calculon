@@ -123,7 +123,9 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     new_system = copy.deepcopy(system_base)
     mem_info = get_mem_info(mem)
     new_system["mem1"]["GiB"] = mem_info['cap_GB']
+    new_system["mem1"]["GiB_orig"] = mem_info['cap_GB']
     new_system["mem1"]["GBps"] = mem_info['bw_GBps']
+    new_system["mem1"]["GBps_orig"] = mem_info['bw_GBps']
     new_system["mem1"]["ns"] = mem_info['lat_ns'] + kwargs["mem_add_lat_ns"]
     new_system["mem2"]["GiB"] = 1000000 # set to large for first iteration
     new_system["mem2"]["GBps"] = mem_info['bw_GBps']
@@ -145,8 +147,9 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
         "system": new_system,
         "datatype": kwargs["datatype"],
         "worktype": kwargs["worktype"],
-        "max_batch_size": kwargs["max_batch_size"],
         "num_iter": kwargs["num_iter"],
+        "max_batch_size": kwargs["max_batch_size"],
+        "max_num_procs": kwargs["max_num_procs"],
         "output_file_dir": OUTPUT_DIRECTORY, 
     }
     

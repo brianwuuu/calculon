@@ -2115,12 +2115,12 @@ class Llm:
     
     req_mem_B = sum(self._get_mem_cap_reqs())
     mem_cap = self.sys.get_mem1_capacity() + self.sys.get_mem2_capacity()
-    # print(self.sys.get_mem1_capacity()/1e9, self.sys.get_mem2_capacity()/1e9, req_mem_B/1e9)
-    e_msg = f"Requires {req_mem_B/1e9} Gbytes, only has {mem_cap/1e9} Gbytes\n"
+    
+    e_msg = f"Requires {req_mem_B/(1024**3)} Gbytes, only has {mem_cap/(1024**3)} Gbytes\n"
     e_msg += f"{self.exe.tensor_par=}, {self.exe.data_par=}, {self.exe.pipeline_par=}"
     if mem_cap < req_mem_B:
       raise Llm.Error(e_msg)
-    # assert(mem_cap >= req_mem_B), e_msg
+    return 0
   
   def run_optim(self, sys):
     assert self._compiled, "You must first call self.compile()"

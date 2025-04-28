@@ -102,6 +102,7 @@ def generate_mem_net_experiment():
 
 
 def generate_optim_experiment():
+    # Hardware Params
     gpu = "h100"
     workloads = [
                 #  "megatron-126M",
@@ -117,24 +118,27 @@ def generate_optim_experiment():
                 #  "megatron-1T",
                  ]
     mems = ["HBM3"]
-    datatypes = ["float16"]
-    worktype = "training"
-    max_batch_size = 2048
-    num_iter = 20
-        
     total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
     
+    # Workload params
+    datatypes = ["float16"]
+    worktype = "training"
+    max_batch_sizes = [2048] # [2**i for i in range(max_batch_size.bit_length())]
+    max_num_procs = 4096
+    num_iter = 10
+    
     # optimized experiments
     optim_config_files = []
-    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns in utilities.cartesian_product(
-        [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns]):
-        args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, 
+    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns, max_batch_size in utilities.cartesian_product(
+        [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns, max_batch_sizes]):
+        args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm,
                     per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
-                    datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, num_iter=num_iter)
+                    datatype=datatype, worktype=worktype, max_batch_size=max_batch_size,
+                    max_num_procs=max_num_procs,num_iter=num_iter)
         optim_config = generate_optim_configs(gpu, workload, mem, **args)
         optim_config_files.append(optim_config)
     setup_optim_experiment(optim_config_files, exp_name="optim")
