@@ -156,6 +156,45 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     utilities.dump_JSON(optim_filename, optim_configs)
     return optim_filename
 
+def generate_baseline_configs(gpu, workload, mem, **kwargs):    
+    # model params (unchanged)
+    model_base_filename = MODEL_DIRECTORY + workload + ".json"
+    
+    # system params 
+    if gpu == "h100": gpu = "h100_80g_nvl8" 
+    elif gpu == "a100": gpu = "a100_80g"
+    elif gpu == "b100": gpu = "b100_80g"
+    else: raise Exception(f"[Error] GPU {gpu} not known")
+    system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
+    system_base = utilities.parse_JSON(system_base_filename)
+    new_system = copy.deepcopy(system_base)
+    mem_info = get_mem_info(mem)
+    new_system["mem1"]["GiB"] = 5 * mem_info['cap_GB']
+    new_system["mem1"]["GBps"] = 5 * mem_info['bw_GBps']
+    new_system["mem1"]["ns"] = mem_info['lat_ns']
+    new_system["mem2"]["GiB"] = 1000000 # set to large for first iteration
+    new_system["mem2"]["GBps"] = 5 * mem_info['bw_GBps']
+    new_system["mem2"]["ns"] = mem_info['lat_ns']
+    new_system["processing_mode"] = "roofline"
+    system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
+    
+    utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
+    utilities.create_directory(OPTIM_DIRECTORY + workload + "/" + system_string + "/")
+    optim_filename = OPTIM_DIRECTORY + workload + "/" + system_string + "/" + "baseline_param.json"
+    
+    optim_configs = {
+        "model": model_base_filename,
+        "system": new_system,
+        "datatype": kwargs["datatype"],
+        "worktype": kwargs["worktype"],
+        "max_batch_size": kwargs["max_batch_size"],
+        "max_num_procs": kwargs["max_num_procs"],
+        "output_file_dir": OUTPUT_DIRECTORY, 
+    }
+    
+    utilities.dump_JSON(optim_filename, optim_configs)
+    return optim_filename
+
 def generate_output_files(model_config_files, arch_config_files, sys_config_files):
     config_files = utilities.zip_configs([model_config_files, arch_config_files, sys_config_files])
     new_config_files = []

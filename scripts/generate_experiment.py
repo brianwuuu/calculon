@@ -3,7 +3,7 @@ File generating script for memory disaggregation experiments.
 """
 import sys, getopt, pprint
 import utilities
-from config_generation import setup_experiment, setup_optim_experiment, generate_optim_configs
+from config_generation import setup_experiment, setup_optim_experiment, generate_optim_configs, generate_baseline_configs
 from resource_optimization import optimize_mem_net, baseline_mem_net
 
 ####################################################################################################
@@ -117,7 +117,7 @@ def generate_optim_experiment():
                 #  "gpt3-13B",
                 #  "megatron-1T",
                  ]
-    mems = ["HBM3"]
+    mems = ["HBM2E"]
     total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
@@ -142,6 +142,15 @@ def generate_optim_experiment():
         optim_config = generate_optim_configs(gpu, workload, mem, **args)
         optim_config_files.append(optim_config)
     setup_optim_experiment(optim_config_files, exp_name="optim")
+
+    baseline_config_files = []
+    for workload, mem, datatype, net_lat_ns, max_batch_size in utilities.cartesian_product(
+        [workloads, mems, datatypes, net_lats_ns, max_batch_sizes]):
+        args = dict(net_lat_ns=net_lat_ns,datatype=datatype, worktype=worktype, 
+                    max_batch_size=max_batch_size,max_num_procs=max_num_procs)
+        optim_config = generate_baseline_configs(gpu, workload, mem, **args)
+        baseline_config_files.append(optim_config)
+    setup_optim_experiment(baseline_config_files, exp_name="baseline")
 
 if __name__ == "__main__":
     try:

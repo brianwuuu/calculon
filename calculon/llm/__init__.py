@@ -25,3 +25,4 @@ from .parameter_calculator import ParameterCalculator
 from .validation import Validation
 from .runner import Runner
 from .sipam_execution import SiPAMExecution
+from .baseline_execution import BaselineExecution

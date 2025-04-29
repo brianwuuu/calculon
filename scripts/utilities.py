@@ -88,7 +88,7 @@ def generate_optim_bash_script(exec_dir, config_file_list, exp_name=""):
     # Construct the string builder
     str_builder = "cd $CALCULON_HOME\n\n"
     str_builder += "export PYTHONPATH=.\n\n"
-    exec_prefix = "./bin/calculon llm-sipam-execution"
+    exec_prefix = "./bin/calculon llm-{}-execution".format("baseline" if exp_name == "baseline" else "sipam")
     exec_file_name = "automated_execution.sh" if exp_name == "" else f"automated_execution_{exp_name}.sh"
     # Write the script to the .sh file
     for config_file in config_file_list:
