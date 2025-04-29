@@ -96,9 +96,11 @@ class BaselineExecution(calculon.CommandLine):
     arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
     sys_str = utilities.generate_system_file_name_string(config["system"])
     output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str)
-    output_file_name = output_dir + sys_str + ".json"
+    output_file_name = output_dir + sys_str
+    output_cache_name = output_dir + "cache.json"
     logger.info(f'[SiPAM] Output: {output_file_name}')
     calculon.io.write_json_file(output[0]['stats'], output_file_name)
+    calculon.io.extend_json_file({config['input_str']:output_file_name}, output_cache_name)
     return 0
   
   @staticmethod

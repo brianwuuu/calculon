@@ -48,3 +48,8 @@ def read_json_file(filename):
   opener = gzip.open if filename.endswith('.gz') else open
   with opener(filename, 'rb') as fd:
     return json.loads(fd.read().decode('utf-8'))
+
+def extend_json_file(new_data, filename):
+    data = read_json_file(filename)
+    data.update(new_data)
+    write_json_file(data, filename)
