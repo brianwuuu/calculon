@@ -102,7 +102,10 @@ def generate_mem_net_experiment():
 
 
 def generate_optim_experiment():
-    # Hardware Params
+    """
+    Generates optimized and baseline experiment configuration files and sets up corresponding experiments.
+    """
+    # --- Hardware Parameters ---
     gpu = "h100"
     workloads = [
                 #  "megatron-126M",
@@ -124,10 +127,10 @@ def generate_optim_experiment():
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
     
-    # Workload params
+    # --- Workload Parameters ---
     datatypes = ["float16"]
     worktype = "training"
-    max_batch_sizes = [2048] # [2**i for i in range(max_batch_size.bit_length())]
+    max_batch_sizes = [2**i for i in range(int(4).bit_length())] # [2048], [2**i for i in range(int(2048).bit_length())]
     max_num_procs = 4096
     num_iter = 10
     

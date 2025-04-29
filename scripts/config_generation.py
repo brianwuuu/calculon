@@ -137,10 +137,10 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     new_system["processing_mode"] = "roofline"
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
     
-    # optim params
-    utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
-    utilities.create_directory(OPTIM_DIRECTORY + workload + "/" + system_string + "/")
-    optim_filename = OPTIM_DIRECTORY + workload + "/" + system_string + "/" + "optim_param.json"
+    workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
+    batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs["max_batch_size"]}" + "/")
+    sys_dir = utilities.create_directory(batch_dir + system_string + "/")
+    optim_filename = sys_dir + "baseline_param.json"
     
     optim_configs = {
         "model": model_base_filename,
@@ -178,11 +178,12 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     new_system["processing_mode"] = "roofline"
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
     
-    utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
-    utilities.create_directory(OPTIM_DIRECTORY + workload + "/" + system_string + "/")
-    optim_filename = OPTIM_DIRECTORY + workload + "/" + system_string + "/" + "baseline_param.json"
+    workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
+    batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs["max_batch_size"]}" + "/")
+    sys_dir = utilities.create_directory(batch_dir + system_string + "/")
+    optim_filename = sys_dir + "baseline_param.json"
     
-    optim_configs = {
+    baseline_configs = {
         "model": model_base_filename,
         "system": new_system,
         "datatype": kwargs["datatype"],
@@ -192,7 +193,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
         "output_file_dir": OUTPUT_DIRECTORY, 
     }
     
-    utilities.dump_JSON(optim_filename, optim_configs)
+    utilities.dump_JSON(optim_filename, baseline_configs)
     return optim_filename
 
 def generate_output_files(model_config_files, arch_config_files, sys_config_files):

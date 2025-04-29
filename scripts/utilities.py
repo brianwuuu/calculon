@@ -16,6 +16,7 @@ def dump_JSON(filename, map):
 def create_directory(directory_path):
     if not os.path.isdir(directory_path):
         os.mkdir(directory_path)
+    return directory_path
 
 def create_output_directory(output_dir, model_dir, arch_dir):
     create_directory(output_dir + model_dir)
@@ -48,10 +49,10 @@ def generate_system_file_name_string(sys_config):
     return system_filename
 
 def generate_arch_file_name_string(arch_config):
-    str_builder = "{}_t{}_p{}_d{}_mbs{}{}{}{}_{}{}".format(
+    str_builder = "{}_t{}_p{}_d{}_bs{}_mbs{}{}{}{}_{}{}".format(
         arch_config["num_procs"],
         arch_config["tensor_par"], arch_config["pipeline_par"], arch_config["data_par"],
-        arch_config["microbatch_size"],
+        arch_config["batch_size"], arch_config["microbatch_size"],
         "_wo" if arch_config["weight_offload"] == True else "",
         "_ao" if arch_config["activations_offload"] == True else "",
         "_oo" if arch_config["optimizer_offload"] == True else "",

@@ -157,14 +157,13 @@ class SiPAMExecution(calculon.CommandLine):
   
   @staticmethod
   def get_batch_size(data_par, max_batch_size):
+    """
+    Returns the largest multiple of `data_par` that does not exceed `max_batch_size`.
+    Returns None if `data_par` is larger than `max_batch_size`.
+    """
     if data_par > max_batch_size:
       return None
-    last = data_par
-    while True:
-      if last + data_par > max_batch_size:
-        return last
-      else:
-        last += data_par
+    return (max_batch_size // data_par) * data_par
 
   @staticmethod
   def build_params(num_procs:int, app:Llm.Application, syst:System, 
@@ -355,6 +354,7 @@ class SiPAMExecution(calculon.CommandLine):
     optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
     optim_config["system"]["mem2"]["GiB"] = 0
     optim_config["system"]["mem2"]["GBps"] = 0
+    optim_config["system"]["mem2"]["ns"] = 0
     optim_config["system"]["networks"][0]["bandwidth"] = net_bw_GBps
     optim_config["system"]["networks"][1]["bandwidth"] = net_bw_GBps
     return num_procs, optim_config

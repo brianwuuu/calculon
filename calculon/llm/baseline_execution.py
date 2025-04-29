@@ -77,6 +77,10 @@ class BaselineExecution(calculon.CommandLine):
     est_num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
     syst.set_mem2_bandwidth(0) 
     syst.set_mem2_capacity(0)
+    config["system"]["mem2"]["GiB"] = 0
+    config["system"]["mem2"]["GBps"] = 0
+    config["system"]["mem2"]["ns"] = 0
+
     # Build the parallel search params and find minimum num processors to fit the model
     num_procs, output = BaselineExecution.find_min_num_procs(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype)
       
@@ -143,14 +147,13 @@ class BaselineExecution(calculon.CommandLine):
   
   @staticmethod
   def get_batch_size(data_par, max_batch_size):
+    """
+    Returns the largest multiple of `data_par` that does not exceed `max_batch_size`.
+    Returns None if `data_par` is larger than `max_batch_size`.
+    """
     if data_par > max_batch_size:
       return None
-    last = data_par
-    while True:
-      if last + data_par > max_batch_size:
-        return last
-      else:
-        last += data_par
+    return (max_batch_size // data_par) * data_par
 
   @staticmethod
   def build_params(num_procs:int, app:Llm.Application, syst:System, 
