@@ -138,10 +138,10 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
     
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
-    batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs["max_batch_size"]}" + "/")
+    batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}" + "/")
     sys_dir = utilities.create_directory(batch_dir + system_string + "/")
-    optim_filename = sys_dir + "baseline_param.json"
-    
+    optim_filename = sys_dir + "optim_param.json"
+    input_str = generate_input_str("sipam", gpu=gpu, workload=workload, mem=mem, **kwargs)
     optim_configs = {
         "model": model_base_filename,
         "system": new_system,
@@ -150,6 +150,7 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
         "num_iter": kwargs["num_iter"],
         "max_batch_size": kwargs["max_batch_size"],
         "max_num_procs": kwargs["max_num_procs"],
+        "input_str": input_str,
         "output_file_dir": OUTPUT_DIRECTORY, 
     }
     
@@ -179,9 +180,10 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
     
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
-    batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs["max_batch_size"]}" + "/")
+    batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}" + "/")
     sys_dir = utilities.create_directory(batch_dir + system_string + "/")
     optim_filename = sys_dir + "baseline_param.json"
+    input_str = generate_input_str("baseline", gpu=gpu, workload=workload, mem=mem, **kwargs)
     
     baseline_configs = {
         "model": model_base_filename,
@@ -190,6 +192,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
         "worktype": kwargs["worktype"],
         "max_batch_size": kwargs["max_batch_size"],
         "max_num_procs": kwargs["max_num_procs"],
+        "input_str": input_str,
         "output_file_dir": OUTPUT_DIRECTORY, 
     }
     
@@ -227,3 +230,15 @@ def get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params
     sys_config_files = generate_system_configs(gpu, mem_params, net_params)
     config_files = zip(model_config_files, arch_config_files, sys_config_files)
     return list(config_files)
+
+def generate_input_str(type, **kwargs):
+    input_str = (
+        f"{kwargs['workload']}_{kwargs['gpu']}_{kwargs['mem']}" + 
+        f"_{kwargs['datatype']}_{kwargs['max_batch_size']}bs_{kwargs['max_num_procs']}max"
+    )
+    if type == "sipam":
+        input_str += (
+            f"_{kwargs['per_pic_bw_GBps']}GBps_{kwargs['total_length_mm']}mm_{kwargs['per_pic_length_mm']}mm" +
+            f"_{kwargs['mem_add_lat_ns']}ns"
+        )
+    return input_str

@@ -108,17 +108,17 @@ def generate_optim_experiment():
     # --- Hardware Parameters ---
     gpu = "h100"
     workloads = [
-                #  "megatron-126M",
-                #  "megatron-530M",
-                #  "megatron-1B",
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
-                #  "anthropic-52B",
-                #  "chinchilla-64B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
+                 "anthropic-52B",
+                 "chinchilla-64B",
                  "gpt3-175B",
-                #  "gpt3-13B",
-                #  "megatron-1T",
+                 "gpt3-13B",
+                 "megatron-1T",
                  ]
     mems = ["HBM2E"]
     total_length_mm = 96
