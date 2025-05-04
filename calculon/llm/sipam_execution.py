@@ -60,14 +60,9 @@ class SiPAMExecution(calculon.CommandLine):
     """
     ## Initial setup
     config = calculon.io.read_json_file(args.config_file)
-    app = Llm.Application(calculon.io.read_json_file(config["model"]))
     syst = System(config["system"])
-  
-    worktype = config['worktype']
-    datatype = config['datatype']
-    max_batch_size = config['max_batch_size']
-    max_num_procs = config['max_num_procs']
-    exe_json = SiPAMExecution.get_init_exe(batch_size=max_batch_size, datatype=datatype, worktype=worktype)
+    app = Llm.Application(calculon.io.read_json_file(config["model"]) | {"seq_size":config["seq_len"]})
+    exe_json = SiPAMExecution.get_init_exe(config['max_batch_size'], config['datatype'], config['worktype'])
     
     iteration = 0
     num_procs_list = []
@@ -84,10 +79,13 @@ class SiPAMExecution(calculon.CommandLine):
       SiPAMExecution.set_syst_params(syst, config)
       
       # Build the parallel search params and find minimum num processors to fit the model
-      num_procs, output = SiPAMExecution.find_min_num_procs(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype)
+      num_procs, output, config = SiPAMExecution.find_min_num_procs(est_num_procs, app, syst, config)
+      SiPAMExecution.set_syst_params(syst, config)
       
       # Increment loop count and update execution params
       iteration += 1
+      if not output: continue
+      
       exe_json = output[0]['execution']
       stats = output[0]['stats']
       print(f"{dots(6)} {color(f'Iteration: {iteration}')}")
@@ -100,30 +98,40 @@ class SiPAMExecution(calculon.CommandLine):
       # Break if curr_num_procs is already in list
       if num_procs_list and num_procs in num_procs_list: break
       num_procs_list.append(num_procs)
-      
-    # write results to output file
-    model_str = config["model"].split("/")[-1].split(".")[0]
-    arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
-    sys_str = utilities.generate_system_file_name_string(config["system"])
-    output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str)
-    output_file_name = output_dir + sys_str
-    output_cache_name = config["output_file_dir"] + "cache.json"
-    logger.info(f'[SiPAM] Output: {output_file_name}')
-    calculon.io.write_json_file(output[0]['stats'], output_file_name)
-    calculon.io.extend_json_file({config['input_str']:output_file_name}, output_cache_name)
+    
+    if output:
+      # write results to output file
+      model_str = config["model"].split("/")[-1].split(".")[0]
+      arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
+      sys_str = utilities.generate_system_file_name_string(config["system"])
+      output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str + f"_seq{config['seq_len']}")
+      output_file_name = output_dir + sys_str
+      output_cache_name = config["output_file_dir"] + "cache.json"
+      logger.info(f'[SiPAM] Output: {output_file_name}')
+      output_dict = output[0]['execution'] | output[0]['stats']
+      calculon.io.write_json_file(output_dict, output_file_name)
+      calculon.io.extend_json_file({config['input_str']:output_file_name}, output_cache_name)
+    else:
+      print(f"{color('[SiPAM] No valid configuration found.')}")
     return 0
   
   @staticmethod
-  def find_min_num_procs(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype):
+  def find_min_num_procs(est_num_procs, app, syst, config):
     print(f"[SiPAM] Searching for minimum number of processors ...")
+    max_batch_size, max_num_procs = config['max_batch_size'], config['max_num_procs']
+    worktype, datatype = config['worktype'], config['datatype']
     output = []
     while not output:
       print(f"[SiPAM] Current processor number = {est_num_procs}")
       params = SiPAMExecution.build_params(est_num_procs, app, syst, max_batch_size, worktype, datatype)
       output = SiPAMExecution.check_capacity(params)
+      if est_num_procs >= max_num_procs: 
+        config = SiPAMExecution.increase_mem_cap(config)
+        SiPAMExecution.set_syst_params(syst, config)
+        continue
       if not output: est_num_procs = int(1 << est_num_procs.bit_length())
     print(f"[SiPAM] Minimum number of processors = {output[0]['execution']['num_procs']}")
-    return est_num_procs, output
+    return est_num_procs, output, config
     
   @staticmethod
   def find_min_num_procs_archive(est_num_procs, max_num_procs, app, syst, max_batch_size, worktype, datatype):
@@ -307,7 +315,7 @@ class SiPAMExecution(calculon.CommandLine):
                 'pipeline_par_net': 1,
                 'data_par_net': 1,
                 'batch_size': batch_size,
-                'microbatch_size': 1,
+                'microbatch_size': 4,
                 'datatype': datatype,
                 'fused_activation': True,
                 'attention_type': 'multihead',
@@ -369,5 +377,16 @@ class SiPAMExecution(calculon.CommandLine):
     syst.set_mem2_bandwidth(0) 
     syst.set_mem2_capacity(0)
     syst.set_net_bandwidth(config["system"]["networks"][0]["bandwidth"])
+  
+  @staticmethod
+  def increase_mem_cap(config):
+    config["system"]["mem1"]["GiB"] += config["system"]["mem1"]["GiB_orig"]
+    config["system"]["mem1"]["GBps"] += config["system"]["mem1"]["GBps_orig"]
+    config["system"]["mem2"]["GiB"] = 0
+    config["system"]["mem2"]["GBps"] = 0
+    config["system"]["mem2"]["ns"] = 0
+    config["system"]["networks"][0]["bandwidth"] -= config["system"]["mem1"]["GBps_orig"]
+    config["system"]["networks"][1]["bandwidth"] -= config["system"]["mem1"]["GBps_orig"]
+    return config
 
 calculon.CommandLine.register(SiPAMExecution)

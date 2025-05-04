@@ -42,7 +42,6 @@ def write_json_file(jdata, filename):
   with opener(filename, 'wb') as fd:
     fd.write(bytes(json.dumps(jdata, indent=indent, cls=NpEncoder), 'utf-8'))
 
-
 def read_json_file(filename):
   assert is_json_extension(filename)
   opener = gzip.open if filename.endswith('.gz') else open
