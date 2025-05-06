@@ -126,11 +126,14 @@ class SiPAMExecution(calculon.CommandLine):
       print(f"[SiPAM] Current processor number = {est_num_procs}")
       params = SiPAMExecution.build_params(est_num_procs, app, syst, max_batch_size, worktype, datatype)
       output = SiPAMExecution.check_capacity(params)
-      if est_num_procs >= max_num_procs: 
-        config = SiPAMExecution.increase_mem_cap(config)
-        SiPAMExecution.set_syst_params(syst, config)
-        continue
-      if not output: est_num_procs = int(1 << est_num_procs.bit_length())
+      net_bw_limit = config["system"]["networks"][0]["bandwidth"] - config["system"]["mem1"]["GBps_orig"] > config["system"]["networks"][0]["min_bandwidth"]
+      print(config["system"]["networks"][0]["bandwidth"], config["system"]["mem1"]["GBps_orig"], config["system"]["networks"][0]["min_bandwidth"])
+      if est_num_procs >= max_num_procs:
+        if net_bw_limit:
+          config = SiPAMExecution.increase_mem_cap(config)
+          SiPAMExecution.set_syst_params(syst, config)
+      else:
+        if not output: est_num_procs = int(1 << est_num_procs.bit_length())
     print(f"[SiPAM] Minimum number of processors = {output[0]['execution']['num_procs']}")
     return est_num_procs, output, config
     
@@ -360,6 +363,7 @@ class SiPAMExecution(calculon.CommandLine):
                               int(np.ceil(per_gpu_mem_bw_GBps / per_pic_bw_GBps))))
     num_net_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_mem_pic_per_gpu)) // per_pic_length_mm # round down
     net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
+    min_net_bw_GBps = 1 * per_pic_bw_GBps
     
     optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
     optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
@@ -368,6 +372,8 @@ class SiPAMExecution(calculon.CommandLine):
     optim_config["system"]["mem2"]["ns"] = 0
     optim_config["system"]["networks"][0]["bandwidth"] = net_bw_GBps
     optim_config["system"]["networks"][1]["bandwidth"] = net_bw_GBps
+    optim_config["system"]["networks"][0]["min_bandwidth"] = min_net_bw_GBps
+    optim_config["system"]["networks"][1]["min_bandwidth"] = min_net_bw_GBps
     return num_procs, optim_config
     
   @staticmethod

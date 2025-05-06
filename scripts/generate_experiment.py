@@ -106,7 +106,7 @@ def generate_optim_experiment():
     Generates optimized and baseline experiment configuration files and sets up corresponding experiments.
     """
     # --- Hardware Parameters ---
-    gpu = "b100"
+    gpu = "h100"
     workloads = [
                 #  "megatron-126M",
                 #  "megatron-530M",
@@ -116,9 +116,9 @@ def generate_optim_experiment():
                 #  "megatron-40B",
                 #  "anthropic-52B",
                 #  "chinchilla-64B",
-                 "turing-530B",
+                #  "turing-530B",
                 #  "gpt3-13B",
-                 "gpt3-175B",
+                #  "gpt3-175B",
                  "megatron-1T",
                  ]
     mems = ["HBM2E"]
@@ -131,9 +131,9 @@ def generate_optim_experiment():
     # --- Workload Parameters ---
     datatypes = ["float16"]
     worktype = "training"
-    max_batch_sizes = [2048] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
+    max_batch_sizes = [4096] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
     seq_lens = [2048] # [512, 1024, 2048, 4096, 8192]
-    max_num_processors = [128, 256, 512, 1024, 2048, 4096]
+    max_num_processors = [8, 16, 32, 64, 128, 256] # 128, 256, 512, 1024, 2048, 4096
     num_iter = 5
     
     # optimized experiments
@@ -149,8 +149,8 @@ def generate_optim_experiment():
     setup_optim_experiment(optim_config_files, exp_name="optim")
 
     baseline_config_files = []
-    for workload, mem, datatype, net_lat_ns, max_batch_size, seq_len in utilities.cartesian_product(
-        [workloads, mems, datatypes, net_lats_ns, max_batch_sizes, seq_lens]):
+    for workload, mem, datatype, net_lat_ns, max_batch_size, seq_len, max_num_procs in utilities.cartesian_product(
+        [workloads, mems, datatypes, net_lats_ns, max_batch_sizes, seq_lens, max_num_processors]):
         args = dict(net_lat_ns=net_lat_ns,datatype=datatype, worktype=worktype, 
                     max_batch_size=max_batch_size,seq_len=seq_len,max_num_procs=max_num_procs)
         optim_config = generate_baseline_configs(gpu, workload, mem, **args)

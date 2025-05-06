@@ -113,7 +113,7 @@ class BaselineExecution(calculon.CommandLine):
       print(f"[SiPAM] Current processor number = {est_num_procs}")
       params = BaselineExecution.build_params(est_num_procs, app, syst, max_batch_size, worktype, datatype)
       output = BaselineExecution.check_capacity(params)
-      if est_num_procs > max_num_procs: break
+      if est_num_procs >= max_num_procs: break
       if not output: est_num_procs = int(1 << est_num_procs.bit_length())
     if output: print(f"[SiPAM] Minimum number of processors = {output[0]['execution']['num_procs']}")
     return est_num_procs, output, config

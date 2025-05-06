@@ -136,10 +136,11 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     new_system["total_length_mm"] = kwargs["total_length_mm"]
     new_system["processing_mode"] = "roofline"
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
+    system_string += f"_{kwargs['per_pic_bw_GBps']}GBps_{kwargs['max_num_procs']}max"
     
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
     batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}_seq{kwargs['seq_len']}" + "/")
-    sys_dir = utilities.create_directory(batch_dir + system_string + f"_{kwargs['per_pic_bw_GBps']}GBps" + "/")
+    sys_dir = utilities.create_directory(batch_dir + system_string + "/")
     optim_filename = sys_dir + "optim_param.json"
     input_str = generate_input_str("sipam", gpu=gpu, workload=workload, mem=mem, **kwargs)
     print(f"[Setup] Input String: {input_str}")
@@ -180,6 +181,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     new_system["mem2"]["ns"] = mem_info['lat_ns']
     new_system["processing_mode"] = "roofline"
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
+    system_string += f"_{kwargs['max_num_procs']}max"
     
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
     batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}_seq{kwargs['seq_len']}" + "/")
