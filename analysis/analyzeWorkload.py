@@ -34,22 +34,23 @@ def get_config_str(configs : tuple):
 
 def analyzeIterTime():
     # --- Hardware Parameters ---
-    gpu = "b100_80g" # "h100_80g_nvl8", "b100_80g", "a100_80g"
+    gpu = "h100_80g_nvl8" # "h100_80g_nvl8", "b100_80g", "a100_80g"
     workloads = [
-                #  "megatron-126M",
-                #  "megatron-530M",
-                #  "megatron-1B",
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
-                #  "anthropic-52B",
-                #  "chinchilla-64B",
-                #  "gpt3-175B",
-                #  "gpt3-13B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
                  "megatron-1T",
+                 "anthropic-52B",
+                 "chinchilla-64B",
+                #  "turing-530B",
+                 "gpt3-13B",
+                 "gpt3-175B",
                  ]
-    mems = ["HBM3"]
-    total_length_mm = 120
+    mems = ["HBM2E"]
+    total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
@@ -58,53 +59,53 @@ def analyzeIterTime():
     # --- Workload Parameters ---
     datatypes = ["float16"]
     worktype = "training"
-    max_batch_sizes = [2**i for i in range(int(8).bit_length(), int(2048).bit_length())] # [2048], [2**i for i in range(int(2048).bit_length())]
+    max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
     
     job_stats = defaultdict(list)
-    for workload, mem, datatype, per_pic_bw_GBps, mem_add_lat_ns, net_lat_ns, seq_len in util.cartesian_product(
-        [workloads, mems, datatypes, per_pic_bws_GBps, mem_add_lats_ns, net_lats_ns, seq_lens]):
-        for max_batch_size in max_batch_sizes:
-            args = dict(workload=workload, gpu=gpu, mem=mem, seq_len=seq_len,
-                    total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm,
-                    per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
-                    datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, max_num_procs=max_num_procs)
-            input_str = generate_input_str("sipam", **args)
-            output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
-            assert(os.path.isfile(output_file)), output_file
-            exec_output = util.parse_JSON(output_file)
-            job_stats["SiPAM"].append(exec_output["total_time_aggregate"])
+    for workload, mem, datatype, per_pic_bw_GBps, mem_add_lat_ns, net_lat_ns, seq_len, max_batch_size in util.cartesian_product(
+        [workloads, mems, datatypes, per_pic_bws_GBps, mem_add_lats_ns, net_lats_ns, seq_lens, max_batch_sizes]):
+        args = dict(workload=workload, gpu=gpu, mem=mem, seq_len=seq_len,
+                total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm,
+                per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
+                datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, max_num_procs=max_num_procs)
+        input_str = generate_input_str("sipam", **args)
+        output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
+        assert(os.path.isfile(output_file)), output_file
+        exec_output = util.parse_JSON(output_file)
+        job_stats["SiPAM"].append(exec_output["total_time_aggregate"])
 
-            input_str = generate_input_str("baseline", **args)
-            output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
-            assert(os.path.isfile(output_file)), output_file
-            exec_output = util.parse_JSON(output_file)
-            job_stats["Baseline"].append(exec_output["total_time_aggregate"])
+        input_str = generate_input_str("baseline", **args)
+        output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
+        assert(os.path.isfile(output_file)), output_file
+        exec_output = util.parse_JSON(output_file)
+        job_stats["Baseline"].append(exec_output["total_time_aggregate"])
 
     pprint.pprint(job_stats)
-    x_ = {"label": "Batch Size", "data": max_batch_sizes, "log":None, "limit": None}
-    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":None, "limit": None}
+    x_ = {"label": "Workloads", "data": workloads, "log":None, "limit": None}
+    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":10, "limit": None}
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)
 
 def analyzeMemoryUsage():
     # --- Hardware Parameters ---
-    gpu = "b100_80g" # "h100_80g_nvl8", "b100_80g", "a100_80g"
+    gpu = "h100_80g_nvl8" # "h100_80g_nvl8", "b100_80g", "a100_80g"
     workloads = [
-                #  "megatron-126M",
-                #  "megatron-530M",
-                #  "megatron-1B",
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
-                #  "anthropic-52B",
-                #  "chinchilla-64B",
-                #  "gpt3-175B",
-                #  "gpt3-13B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
                  "megatron-1T",
+                 "anthropic-52B",
+                 "chinchilla-64B",
+                #  "turing-530B",
+                 "gpt3-13B",
+                 "gpt3-175B",
                  ]
-    mems = ["HBM3"]
-    total_length_mm = 120
+    mems = ["HBM2E"]
+    total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
@@ -113,7 +114,7 @@ def analyzeMemoryUsage():
     # --- Workload Parameters ---
     datatypes = ["float16"]
     worktype = "training"
-    max_batch_sizes = [512, 1024] # [2**i for i in range(int(8).bit_length(), int(2048).bit_length())] # [2048]
+    max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
     
@@ -129,88 +130,39 @@ def analyzeMemoryUsage():
         assert(os.path.isfile(output_file)), output_file
         exec_output = util.parse_JSON(output_file)
         mem_cap_sipam = int(output_file.split("/")[-1].split("_")[5].split("GB")[0])
-        job_stats["SiPAM"].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/(1024**3)/mem_cap_sipam)
+        job_stats["SiPAM"].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/mem_cap_sipam)
 
         input_str = generate_input_str("baseline", **args)
         output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
         assert(os.path.isfile(output_file)), output_file
         exec_output = util.parse_JSON(output_file)
         mem_cap_baseline = int(output_file.split("/")[-1].split("_")[5].split("GB")[0])
-        job_stats["Baseline"].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/(1024**3)/mem_cap_baseline)
+        job_stats["Baseline"].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/mem_cap_baseline)
 
     pprint.pprint(job_stats)
-    x_ = {"label": "Batch Size", "data": max_batch_sizes, "log":None, "limit": None}
+    x_ = {"label": "Workloads", "data": workloads, "log":None, "limit": None}
     y_ = {"label": "% Memory Usage", "data": job_stats, "log":None, "limit": None}
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)
 
 
-def analyzeEfficency():
-    gpu = "h100"
-    workloads = {
-        "Meg\n126M": "megatron-126M",
-        "Meg\n530M": "megatron-530M",
-        "Meg\n1B": "megatron-1B",
-        "Meg\n5B": "megatron-5B", 
-        "Meg\n22B": "megatron-22B", 
-        "Meg\n40B": "megatron-40B",
-        "Anth\n52B": "anthropic-52B",
-        "Chin\n64B": "chinchilla-64B",
-        "GPT3\n175B": "gpt3-175B",
-    }
-    mems = ["HBM2E"]
-    datatypes = ["float16"]
-        
-    total_length_mm = 96
-    per_pic_length_mm = 8
-    per_pic_bws_GBps = [337.5] # 2048, 337.5
-    worktype = "training"
-    efftype = "Compute efficiency"
-    
-    job_stats = defaultdict(list)
-    for workload in workloads.values():
-        for mem in mems:
-            for datatype in datatypes:
-                for per_pic_bw_GBps in per_pic_bws_GBps:
-                    args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, per_pic_bw_GBps=per_pic_bw_GBps,worktype=worktype)
-                    mem_params, net_params, model_params, arch_params = optimize_mem_net(gpu, workload, mem, datatype, **args)
-                    optim_files = get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params, **args)
-                    model,arch_filename,system_filename = get_config_str(optim_files[0])
-                    output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
-                    assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parse_JSON(output_dir + system_filename)
-                    # norm_eff = exec_output[efftype]
-                    job_stats["SiPAM"].append(exec_output[efftype] / 1)
-
-                    mem_params, net_params, model_params, arch_params = baseline_mem_net(gpu, workload, mem, datatype, **args)
-                    baseline_files = get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params, **args)
-                    model,arch_filename,system_filename = get_config_str(baseline_files[0])
-                    output_dir = OUTPUT_DIRECTORY + model + "/" + arch_filename + "/"
-                    assert(os.path.isfile(output_dir + system_filename)), output_dir + system_filename
-                    exec_output = util.parse_JSON(output_dir + system_filename)
-                    job_stats["Baseline"].append(exec_output[efftype] / 1)
-
-    pprint.pprint(job_stats)
-    x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
-    y_ = {"label": "System Efficiency (%)", "data": job_stats, "log": None, "limit": None}
-    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2.4,1.8), bbox_to_anchor=(0.05,0.98), ncol=2)
-
 def analyzeGPUHour():
     # --- Hardware Parameters ---
-    gpu = "a100_80g" # "h100_80g_nvl8", "b100_80g", "a100_80g"
+    gpu = "h100_80g_nvl8" # "h100_80g_nvl8", "b100_80g", "a100_80g"
     workloads = [
-                #  "megatron-126M",
-                #  "megatron-530M",
-                #  "megatron-1B",
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
-                #  "anthropic-52B",
-                #  "chinchilla-64B",
-                #  "gpt3-175B",
-                #  "gpt3-13B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
                  "megatron-1T",
+                 "anthropic-52B",
+                 "chinchilla-64B",
+                #  "turing-530B",
+                 "gpt3-13B",
+                 "gpt3-175B",
                  ]
-    mems = ["HBM2"]
+    mems = ["HBM2E"]
     total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
@@ -220,7 +172,7 @@ def analyzeGPUHour():
     # --- Workload Parameters ---
     datatypes = ["float16"]
     worktype = "training"
-    max_batch_sizes = [2**i for i in range(int(8).bit_length(),int(2048).bit_length())] # [2048], [2**i for i in range(int(2048).bit_length())]
+    max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
     
@@ -245,7 +197,7 @@ def analyzeGPUHour():
             job_stats["Baseline"].append(exec_output["total_time_aggregate"]*exec_output["num_procs"]/3600)
             
     pprint.pprint(job_stats)
-    x_ = {"label": "Batch Size", "data": max_batch_sizes, "log":None, "limit": None}
+    x_ = {"label": "Workloads", "data": workloads, "log":None, "limit": None}
     y_ = {"label": "Total CU Hours", "data": job_stats, "log":10, "limit": None}
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0.01,0.75), ncol=1)
 
@@ -310,8 +262,6 @@ if __name__ == "__main__":
             exp_name = str(arg)
     if exp_name == "iter":
         analyzeIterTime()
-    elif exp_name == "eff":
-        analyzeEfficency()
     elif exp_name == "mem":
         analyzeMemoryUsage()
     elif exp_name == "hour":

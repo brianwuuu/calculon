@@ -1492,7 +1492,7 @@ class Llm:
     # Aggregate (all) flops under roofline model
     total_flops = self._block_fw_flops + self._block_re_flops + self._block_agrad_flops + self._block_wgrad_flops + self._block_optim_flops
     total_mem = self._block_fw_mem_accessed + self._block_re_mem_accessed + self._block_agrad_mem_accessed + self._block_wgrad_mem_accessed + self._block_optim_mem_accessed
-    self.__block_roofline_time = self.sys.get_processing_time(
+    self._block_roofline_time = self.sys.get_processing_time(
       total_flops / self.sys.get_matrix_throughput(total_flops),
       total_mem / self.sys.get_mem1_throughput(total_mem) + self.sys.get_mem1_latency()
     )
@@ -1575,8 +1575,8 @@ class Llm:
     self._re_time_rl = mult * self._block_re_time_rl
     self._agrad_time_rl = mult * self._block_agrad_time_rl
     self._wgrad_time_rl = mult * self._block_wgrad_time_rl
-    self._optim_time_rl = mult * self._block_optim_time_rl
-    self._aggregate_rl_time = mult * self.__block_roofline_time
+    self._optim_time_rl = self._blocks_per_proc * self._block_optim_time_rl
+    self._aggregate_rl_time = mult * self._block_roofline_time
 
     # These TP numbers are for total times for all blocks in all chunks
     tp_fw_comm_time = self.exe._num_microbatches * self._chunks_per_proc * (

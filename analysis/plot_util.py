@@ -353,7 +353,7 @@ def plotMultiLineChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.4)
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.4)
     ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.4)
-    # plt.legend(bbox_to_anchor=kwargs["bbox_to_anchor"], loc='lower left', ncol=kwargs["ncol"], fontsize=legend_fontsize)
+    plt.legend(bbox_to_anchor=kwargs["bbox_to_anchor"], loc='lower left', ncol=kwargs["ncol"], fontsize=legend_fontsize)
     plt.tight_layout()
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()

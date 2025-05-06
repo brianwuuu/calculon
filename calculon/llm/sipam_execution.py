@@ -66,7 +66,7 @@ class SiPAMExecution(calculon.CommandLine):
     
     iteration = 0
     num_procs_list = []
-    best_output = None
+    best_output, best_config = None, None
     while iteration < config['num_iter']:
       # Compile the model
       exe = Llm.Execution.from_json(exe_json)
@@ -95,22 +95,23 @@ class SiPAMExecution(calculon.CommandLine):
       print(f"{dots(6)} {color('Mem Needed')}: {stats['proc_mem_tier1_cap_req']/(1024**3)}GB, {color('Memory Cap')}: {config['system']['mem1']['GiB']}GB\n")
       
       best_output = output if not best_output or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate'] else best_output 
+      best_config = config if not best_config or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate'] else best_config 
       # Break if curr_num_procs is already in list
       if num_procs_list and num_procs in num_procs_list: break
       num_procs_list.append(num_procs)
     
-    if output:
+    if best_output:
       # write results to output file
-      model_str = config["model"].split("/")[-1].split(".")[0]
-      arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
-      sys_str = utilities.generate_system_file_name_string(config["system"])
-      output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str + f"_seq{config['seq_len']}")
+      model_str = best_config["model"].split("/")[-1].split(".")[0]
+      arch_str = utilities.generate_arch_file_name_string(best_output[0]['execution'])
+      sys_str = utilities.generate_system_file_name_string(best_config["system"])
+      output_dir = utilities.create_output_directory(best_config["output_file_dir"], model_str, arch_str + f"_seq{best_config['seq_len']}")
       output_file_name = output_dir + sys_str
-      output_cache_name = config["output_file_dir"] + "cache.json"
+      output_cache_name = best_config["output_file_dir"] + "cache.json"
       logger.info(f'[SiPAM] Output: {output_file_name}')
-      output_dict = output[0]['execution'] | output[0]['stats']
+      output_dict = best_output[0]['execution'] | best_output[0]['stats']
       calculon.io.write_json_file(output_dict, output_file_name)
-      calculon.io.extend_json_file({config['input_str']:output_file_name}, output_cache_name)
+      calculon.io.extend_json_file({best_config['input_str']:output_file_name}, output_cache_name)
     else:
       print(f"{color('[SiPAM] No valid configuration found.')}")
     return 0
@@ -340,9 +341,9 @@ class SiPAMExecution(calculon.CommandLine):
     flops_matrix = curr_config["system"]["matrix"][datatype]["tflops"] * 1e12
     ai_list = model.get_arithmetic_intensity()
     ai = ai_list['total'] # matrix, vector, total, mean, median
-    
+
     req_mem_bw_per_gpu_GBps = flops_matrix / ai / 1e9
-    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / curr_config["system"]["mem1"]["GBps_orig"]))
+    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / curr_config["system"]["mem1"]["GBps_orig"])) + 1
     per_gpu_mem_bw_GBps = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
     per_gpu_mem_cap_GB = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
     num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))

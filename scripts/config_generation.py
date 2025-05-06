@@ -139,9 +139,10 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
     batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}_seq{kwargs['seq_len']}" + "/")
-    sys_dir = utilities.create_directory(batch_dir + system_string + "/")
+    sys_dir = utilities.create_directory(batch_dir + system_string + f"_{kwargs['per_pic_bw_GBps']}GBps" + "/")
     optim_filename = sys_dir + "optim_param.json"
     input_str = generate_input_str("sipam", gpu=gpu, workload=workload, mem=mem, **kwargs)
+    print(f"[Setup] Input String: {input_str}")
     optim_configs = {
         "model": model_base_filename,
         "system": new_system,
