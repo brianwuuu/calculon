@@ -35,17 +35,17 @@ def get_config_str(configs : tuple):
 sys_map = {
     "a100_80g": "A100",
     "h100_80g_nvl8": "H100",
-    "b100_80g": "B100"
+    "b100_192g": "B100"
 }
 
 def analyzeIterTime():
     # --- Hardware Parameters ---
     compute_sys = [("a100_80g", "HBM2", 96), 
                    ("h100_80g_nvl8", "HBM2E", 96), 
-                   ("b100_80g", "HBM3", 120),
-                   ("b100_80g", "HBM2", 120),
-                   ("b100_80g", "HBM4", 120),
-                   ("b100_80g", "HBM2E", 120),
+                   ("b100_192g", "HBM3", 120),
+                   ("b100_192g", "HBM2", 120),
+                   ("b100_192g", "HBM4", 120),
+                   ("b100_192g", "HBM2E", 120),
                    ]
     workloads = [
                 #  "megatron-126M",
@@ -97,10 +97,10 @@ def analyzeGPUHour():
     # --- Hardware Parameters ---
     compute_sys = [("a100_80g", "HBM2", 96), 
                    ("h100_80g_nvl8", "HBM2E", 96), 
-                   ("b100_80g", "HBM3", 120),
-                   ("b100_80g", "HBM2", 120),
-                   ("b100_80g", "HBM4", 120),
-                   ("b100_80g", "HBM2E", 120),
+                   ("b100_192g", "HBM3", 120),
+                   ("b100_192g", "HBM2", 120),
+                   ("b100_192g", "HBM4", 120),
+                   ("b100_192g", "HBM2E", 120),
                    ]
     workloads = [
                 #  "megatron-126M",

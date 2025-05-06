@@ -80,7 +80,7 @@ def generate_system_configs(gpu, mem_params, net_params):
     """
     if gpu == "h100": gpu = "h100_80g_nvl8" 
     elif gpu == "a100": gpu = "a100_80g"
-    elif gpu == "b100": gpu = "b100_80g"
+    elif gpu == "b100": gpu = "b100_192g"
     else: raise Exception(f"[Error] GPU {gpu} not known")
     system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
     system_base = utilities.parse_JSON(system_base_filename)
@@ -116,7 +116,7 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     # system params 
     if gpu == "h100": gpu = "h100_80g_nvl8" 
     elif gpu == "a100": gpu = "a100_80g"
-    elif gpu == "b100": gpu = "b100_80g"
+    elif gpu == "b100": gpu = "b100_192g"
     else: raise Exception(f"[Error] GPU {gpu} not known")
     system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
     system_base = utilities.parse_JSON(system_base_filename)
@@ -166,7 +166,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     # system params 
     if gpu == "h100": gpu = "h100_80g_nvl8" 
     elif gpu == "a100": gpu = "a100_80g"
-    elif gpu == "b100": gpu = "b100_80g"
+    elif gpu == "b100": gpu = "b100_192g"
     else: raise Exception(f"[Error] GPU {gpu} not known")
     system_base_filename = SYSTEM_DIRECTORY + gpu + ".json"
     system_base = utilities.parse_JSON(system_base_filename)

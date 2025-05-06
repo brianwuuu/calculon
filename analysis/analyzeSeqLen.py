@@ -34,7 +34,7 @@ def get_config_str(configs : tuple):
 
 def analyzeIterTime():
     # --- Hardware Parameters ---
-    gpu = "b100_80g" # "h100_80g_nvl8", "b100_80g", "a100_80g"
+    gpu = "b100_192g" # "h100_80g_nvl8", "b100_192g", "a100_80g"
     workloads = [
                 #  "megatron-126M",
                 #  "megatron-530M",
@@ -139,7 +139,7 @@ def analyzeEfficency():
 
 def analyzeGPUHour():
     # --- Hardware Parameters ---
-    gpu = "a100_80g" # "h100_80g_nvl8", "b100_80g", "a100_80g"
+    gpu = "a100_80g" # "h100_80g_nvl8", "b100_192g", "a100_80g"
     workloads = [
                 #  "megatron-126M",
                 #  "megatron-530M",

@@ -116,10 +116,10 @@ def generate_optim_experiment():
                 #  "megatron-40B",
                 #  "anthropic-52B",
                 #  "chinchilla-64B",
-                #  "turing-530B",
+                 "turing-530B",
                 #  "gpt3-13B",
                  "gpt3-175B",
-                #  "megatron-1T",
+                 "megatron-1T",
                  ]
     mems = ["HBM2E"]
     total_length_mm = 120
@@ -133,7 +133,7 @@ def generate_optim_experiment():
     worktype = "training"
     max_batch_sizes = [2048] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
     seq_lens = [2048] # [512, 1024, 2048, 4096, 8192]
-    max_num_processors = [4096]
+    max_num_processors = [128, 256, 512, 1024, 2048, 4096]
     num_iter = 5
     
     # optimized experiments
