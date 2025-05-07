@@ -122,7 +122,7 @@ def generate_optim_experiment():
                  "megatron-1T",
                  ]
     mems = ["HBM2E"]
-    total_length_mm = 120
+    total_length_mm = 96
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
@@ -130,10 +130,10 @@ def generate_optim_experiment():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
-    max_batch_sizes = [4096] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
+    worktype = "inference"
+    max_batch_sizes = [2048] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
     seq_lens = [2048] # [512, 1024, 2048, 4096, 8192]
-    max_num_processors = [8, 16, 32, 64, 128, 256] # 128, 256, 512, 1024, 2048, 4096
+    max_num_processors = [4096] # 128, 256, 512, 1024, 2048, 4096
     num_iter = 5
     
     # optimized experiments

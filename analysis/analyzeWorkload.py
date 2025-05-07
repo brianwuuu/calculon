@@ -35,20 +35,20 @@ def get_config_str(configs : tuple):
 def analyzeIterTime():
     # --- Hardware Parameters ---
     gpu = "h100_80g_nvl8" # "h100_80g_nvl8", "b100_192g", "a100_80g"
-    workloads = [
-                 "megatron-126M",
-                 "megatron-530M",
-                 "megatron-1B",
-                 "megatron-5B", 
-                 "megatron-22B", 
-                 "megatron-40B",
-                 "megatron-1T",
-                 "anthropic-52B",
-                 "chinchilla-64B",
-                #  "turing-530B",
-                 "gpt3-13B",
-                 "gpt3-175B",
-                 ]
+    workloads = {
+        "126M": "megatron-126M",
+        "530M": "megatron-530M",
+        "1B": "megatron-1B",
+        "5B": "megatron-5B", 
+        "22B": "megatron-22B", 
+        "40B": "megatron-40B",
+        "52B": "anthropic-52B",
+        "64B": "chinchilla-64B",
+        "175B": "gpt3-175B",
+        # "13B": "gpt3-13B",
+        # "530B": "turing-530B",
+        "1T": "megatron-1T",
+    }
     mems = ["HBM2E"]
     total_length_mm = 96
     per_pic_length_mm = 8
@@ -58,33 +58,36 @@ def analyzeIterTime():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
+    worktype = "inference"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
     
     job_stats = defaultdict(list)
     for workload, mem, datatype, per_pic_bw_GBps, mem_add_lat_ns, net_lat_ns, seq_len, max_batch_size in util.cartesian_product(
-        [workloads, mems, datatypes, per_pic_bws_GBps, mem_add_lats_ns, net_lats_ns, seq_lens, max_batch_sizes]):
+        [workloads.values(), mems, datatypes, per_pic_bws_GBps, mem_add_lats_ns, net_lats_ns, seq_lens, max_batch_sizes]):
         args = dict(workload=workload, gpu=gpu, mem=mem, seq_len=seq_len,
                 total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm,
                 per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
                 datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, max_num_procs=max_num_procs)
         input_str = generate_input_str("sipam", **args)
+        print(input_str)
+        sys.exit()
         output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
         assert(os.path.isfile(output_file)), output_file
         exec_output = util.parse_JSON(output_file)
-        job_stats["SiPAM"].append(exec_output["total_time_aggregate"])
+        norm_time = exec_output["total_time_aggregate"]
+        job_stats["SiPAM"].append(exec_output["total_time_aggregate"] / norm_time)
 
         input_str = generate_input_str("baseline", **args)
         output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
         assert(os.path.isfile(output_file)), output_file
         exec_output = util.parse_JSON(output_file)
-        job_stats["Baseline"].append(exec_output["total_time_aggregate"])
+        job_stats["Baseline"].append(exec_output["total_time_aggregate"]/ norm_time)
 
     pprint.pprint(job_stats)
-    x_ = {"label": "Workloads", "data": workloads, "log":None, "limit": None}
-    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":10, "limit": None}
+    x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
+    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":None, "limit": (0,8)}
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)
 
 def analyzeMemoryUsage():
@@ -202,7 +205,7 @@ def analyzeGPUHour():
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0.01,0.75), ncol=1)
 
 def analyzeArithmeticIntensity():
-    gpu = "h100"
+    gpu = "h100_80g_nvl8"
     workloads = {
         "Meg\n126M": "megatron-126M",
         "Meg\n530M": "megatron-530M",
@@ -210,37 +213,51 @@ def analyzeArithmeticIntensity():
         "Meg\n5B": "megatron-5B", 
         "Meg\n22B": "megatron-22B", 
         "Meg\n40B": "megatron-40B",
-        "ANth\n52B": "anthropic-52B",
+        "Anth\n52B": "anthropic-52B",
         "Chin\n64B": "chinchilla-64B",
         "GPT3\n175B": "gpt3-175B",
         # "GPT3\n13B": "gpt3-13B",
-        # "Meg\n1T": "megatron-1T",
+        "Meg\n1T": "megatron-1T",
     }
     mems = ["HBM2E"]
-    datatypes = ["float16"]
-    worktype = "training"
-        
     total_length_mm = 96
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [337.5]
+    per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
+    mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
+    net_lats_ns = [20]
+    
+    # --- Workload Parameters ---
+    datatypes = ["float16"]
+    worktype = "inference"
+    max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
+    seq_lens = [2048]
+    max_num_procs = 4096
     
     job_stats = defaultdict(list)
-    for workload in workloads.values():
-        workload_info = get_workload_info(workload)
-        arithmetic_intensity = workload_info[worktype]["ai"]
-        job_stats["Arithmetic Intensity"].append(arithmetic_intensity)
-        for mem in mems:
-            for datatype in datatypes:
-                cu_info = get_cu_info(gpu, datatype)
-                for per_pic_bw_GBps in per_pic_bws_GBps:
-                    args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm, per_pic_bw_GBps=per_pic_bw_GBps, worktype=worktype)
-                    mem_params, net_params, model_params, arch_params = optimize_mem_net(gpu, workload, mem, datatype, **args)
-                    optim_operational_intensity = cu_info["matrix"] / (mem_params[0]["mem1_GBps"] * 1e9)
-                    job_stats["SiPAM Compute Intensity"].append(optim_operational_intensity)
+    for mem, datatype, per_pic_bw_GBps, mem_add_lat_ns, net_lat_ns, seq_len, max_batch_size in util.cartesian_product(
+        [mems, datatypes, per_pic_bws_GBps, mem_add_lats_ns, net_lats_ns, seq_lens, max_batch_sizes]):
+        for name, workload in workloads.items():
+            args = dict(workload=workload, gpu=gpu, mem=mem, seq_len=seq_len,
+                    total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm,
+                    per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
+                    datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, max_num_procs=max_num_procs)
+            input_str = generate_input_str("sipam", **args)
+            output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
+            assert(os.path.isfile(output_file)), output_file
+            exec_output = util.parse_JSON(output_file)
+            compute_flops = float(output_file.split("/")[-1].split("tflops")[0]) * 1e12
+            mem_bw_Bps = float(output_file.split("/")[-1].split("_")[3].split("GBps")[0]) * 1e9
+            job_stats["Arithmetic Intensity"].append(exec_output["arithmetic_intensity"]["total"])
+            job_stats["SiPAM Compute Intensity"].append(compute_flops / mem_bw_Bps)
 
-                    mem_params, net_params, model_params, arch_params = baseline_mem_net(gpu, workload, mem, datatype, **args)
-                    baseline_operational_intensity = cu_info["matrix"] / (mem_params[0]["mem1_GBps"] * 1e9)
-                    job_stats["Baseline Compute Intensity"].append(baseline_operational_intensity)
+            input_str = generate_input_str("baseline", **args)
+            output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
+            assert(os.path.isfile(output_file)), output_file
+            exec_output = util.parse_JSON(output_file)
+            compute_flops = float(output_file.split("/")[-1].split("tflops")[0]) * 1e12
+            mem_bw_Bps = float(output_file.split("/")[-1].split("_")[3].split("GBps")[0]) * 1e9
+            job_stats["Baseline Compute Intensity"].append(compute_flops / mem_bw_Bps)
+
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
     y_ = {"label": "FLOPs/Byte", "data": job_stats, "log": None, "limit": (0, 1100)}

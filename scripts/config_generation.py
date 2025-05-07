@@ -141,7 +141,7 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
     batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}_seq{kwargs['seq_len']}" + "/")
     sys_dir = utilities.create_directory(batch_dir + system_string + "/")
-    optim_filename = sys_dir + "optim_param.json"
+    optim_filename = sys_dir + f"optim_param_{kwargs['worktype']}.json"
     input_str = generate_input_str("sipam", gpu=gpu, workload=workload, mem=mem, **kwargs)
     print(f"[Setup] Input String: {input_str}")
     optim_configs = {
@@ -186,7 +186,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     workload_dir = utilities.create_directory(OPTIM_DIRECTORY + workload + "/")
     batch_dir = utilities.create_directory(workload_dir + f"bs{kwargs['max_batch_size']}_seq{kwargs['seq_len']}" + "/")
     sys_dir = utilities.create_directory(batch_dir + system_string + "/")
-    optim_filename = sys_dir + "baseline_param.json"
+    optim_filename = sys_dir + f"baseline_param_{kwargs['worktype']}.json"
     input_str = generate_input_str("baseline", gpu=gpu, workload=workload, mem=mem, **kwargs)
     
     baseline_configs = {
@@ -238,7 +238,7 @@ def get_confile_filenames(gpu, mem_params, net_params, model_params, arch_params
 
 def generate_input_str(type, **kwargs):
     input_str = (
-        f"{kwargs['workload']}_{kwargs['gpu']}_{kwargs['mem']}" + 
+        f"{kwargs['workload']}_{kwargs['gpu']}_{kwargs['mem']}_{kwargs['worktype']}" + 
         f"_{kwargs['datatype']}_{kwargs['max_batch_size']}bs_{kwargs['seq_len']}seq_{kwargs['max_num_procs']}max"
     )
     if type == "sipam":

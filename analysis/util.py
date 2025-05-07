@@ -78,3 +78,6 @@ def extractMemoryInfo(stats):
 
 def cartesian_product(param_list):
     return [x for x in itertools.product(*param_list)]
+
+def upper(input:str):
+    return ''.join(c.upper() if c.isalpha() else c for c in input)

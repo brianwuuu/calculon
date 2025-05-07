@@ -94,18 +94,21 @@ class SiPAMExecution(calculon.CommandLine):
       print(f"{dots(6)} {color('AI')}: {stats['arithmetic_intensity']['total']}, {color('Memory BW')}: {config['system']['mem1']['GBps']}GBps")
       print(f"{dots(6)} {color('Mem Needed')}: {stats['proc_mem_tier1_cap_req']/(1024**3)}GB, {color('Memory Cap')}: {config['system']['mem1']['GiB']}GB\n")
       
-      best_output = output if not best_output or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate'] else best_output 
-      best_config = config if not best_config or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate'] else best_config 
+      update = not best_output or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate']
+      best_output = output if update else best_output 
+      best_config = config if update else best_config 
+      
       # Break if curr_num_procs is already in list
-      if num_procs_list and num_procs in num_procs_list: break
-      num_procs_list.append(num_procs)
+      if num_procs_list and (num_procs, exe_json['tensor_par'], exe_json['pipeline_par'], exe_json['data_par']) in num_procs_list: break
+      num_procs_list.append((num_procs, exe_json['tensor_par'], exe_json['pipeline_par'], exe_json['data_par']))
     
     if best_output:
       # write results to output file
       model_str = best_config["model"].split("/")[-1].split(".")[0]
       arch_str = utilities.generate_arch_file_name_string(best_output[0]['execution'])
       sys_str = utilities.generate_system_file_name_string(best_config["system"])
-      output_dir = utilities.create_output_directory(best_config["output_file_dir"], model_str, arch_str + f"_seq{best_config['seq_len']}")
+      exp_str = f"_seq{best_config['seq_len']}_max{best_config['max_num_procs']}"
+      output_dir = utilities.create_output_directory(best_config["output_file_dir"], model_str, arch_str + exp_str)
       output_file_name = output_dir + sys_str
       output_cache_name = best_config["output_file_dir"] + "cache.json"
       logger.info(f'[SiPAM] Output: {output_file_name}')
@@ -132,9 +135,11 @@ class SiPAMExecution(calculon.CommandLine):
         if net_bw_limit:
           config = SiPAMExecution.increase_mem_cap(config)
           SiPAMExecution.set_syst_params(syst, config)
+        else:
+          break
       else:
         if not output: est_num_procs = int(1 << est_num_procs.bit_length())
-    print(f"[SiPAM] Minimum number of processors = {output[0]['execution']['num_procs']}")
+    if output: print(f"[SiPAM] Minimum number of processors = {output[0]['execution']['num_procs']}")
     return est_num_procs, output, config
     
   @staticmethod
@@ -323,7 +328,7 @@ class SiPAMExecution(calculon.CommandLine):
                 'datatype': datatype,
                 'fused_activation': True,
                 'attention_type': 'multihead',
-                'activation_recompute': "full",
+                'activation_recompute': "full" if worktype == 'training' else "none",
                 'pipeline_interleaving': 1,
                 'optimizer_sharding': False,
                 'tensor_par_comm_type': "rs_ag",
@@ -333,7 +338,7 @@ class SiPAMExecution(calculon.CommandLine):
                 'weight_offload': False,
                 'activations_offload': False,
                 'optimizer_offload': False,
-                'training': worktype
+                'training': worktype == 'training'
               }
     return exe_json
 
@@ -352,6 +357,7 @@ class SiPAMExecution(calculon.CommandLine):
     num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
     num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
     # num_procs = (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
+    num_procs = min(num_procs, curr_config["max_num_procs"])
 
     min_num_mem_pic_per_gpu = 1
     max_num_mem_pic_per_gpu = optim_config["system"]["max_num_mem_pic_per_gpu"]

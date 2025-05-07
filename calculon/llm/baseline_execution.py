@@ -92,7 +92,8 @@ class BaselineExecution(calculon.CommandLine):
       model_str = config["model"].split("/")[-1].split(".")[0]
       arch_str = utilities.generate_arch_file_name_string(output[0]['execution'])
       sys_str = utilities.generate_system_file_name_string(config["system"])
-      output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str + f"_seq{config['seq_len']}")
+      exp_str = f"_seq{config['seq_len']}_max{config['max_num_procs']}"
+      output_dir = utilities.create_output_directory(config["output_file_dir"], model_str, arch_str + exp_str)
       output_file_name = output_dir + sys_str
       output_cache_name = config["output_file_dir"] + "cache.json"
       logger.info(f'[SiPAM] Output: {output_file_name}')
@@ -304,7 +305,7 @@ class BaselineExecution(calculon.CommandLine):
                 'datatype': datatype,
                 'fused_activation': True,
                 'attention_type': 'multihead',
-                'activation_recompute': "full",
+                'activation_recompute': "full" if worktype == 'training' else "none",
                 'pipeline_interleaving': 1,
                 'optimizer_sharding': False,
                 'tensor_par_comm_type': "rs_ag",
@@ -314,7 +315,7 @@ class BaselineExecution(calculon.CommandLine):
                 'weight_offload': False,
                 'activations_offload': False,
                 'optimizer_offload': False,
-                'training': worktype
+                'training': worktype == 'training'
               }
     return exe_json
 

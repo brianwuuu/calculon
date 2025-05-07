@@ -9,10 +9,12 @@
 # its affiliates is strictly prohibited.
 import sys
 import numpy as np
+import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.ticker as ticker
+from matplotlib.colors import LinearSegmentedColormap
 
 mpl.rcParams['font.family'] = "serif"
 mpl.rcParams['hatch.linewidth'] = 0.2
@@ -540,7 +542,7 @@ def plotAreaSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs)
     else: plt.show()
     plt.close()
 
-# Ploting function for multi-line subplot
+# Ploting function for heatmap
 def plotHeatMapChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs):
     print("[ANALYSIS] Plotting heatmap chart to " + path)
     assert('matrices' in kwargs)
@@ -568,6 +570,68 @@ def plotHeatMapChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs)
                 text = ax.text(j, i, round(kwargs['matrices'][param][i][j], 3),ha="center", va="center", color="w", fontsize=tick_fontsize)
     plt.tight_layout()
     # plt.legend(bbox_to_anchor=(-1.4, -0.4), loc='lower left', fontsize=legend_fontsize, ncol=4) # (-1.4, -0.39) (-0.3, 3.95)
+    if path: plt.savefig(path, dpi=200, transparent=True)
+    else: plt.show()
+    plt.close()
+    
+def plotLabeledHeatMap(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2.5), **kwargs):
+    # Convert text data to numerical values for coloring
+    data_text = kwargs["data_text"]
+    heatmap_data = []
+    mask = []
+
+    for row in data_text:
+        heatmap_row = []
+        mask_row = []
+        for val in row:
+            if val == None:
+                heatmap_row.append(0)  # placeholder, will be masked
+                mask_row.append(True)
+            elif "\n" in val:
+                heatmap_row.append(float(val.split('\n')[-1]))  # use latency for coloring
+                mask_row.append(False)
+        heatmap_data.append(heatmap_row)
+        mask.append(mask_row)
+    
+    data_text = [["\n".join(s.split('\n')[:-1]) if s != None else "" for s in row] for row in data_text]
+    mask = np.array(mask)
+
+    original_cmap = plt.cm.Blues
+    custom_blues = LinearSegmentedColormap.from_list(
+        "custom_blues",
+        original_cmap(np.linspace(0.3, 1.0, 256))  # skip 0.0–0.3 (lightest range)
+    )
+    
+    # Create the heatmap with seaborn
+    fig, ax = plt.subplots(figsize=fig_size, dpi=200)
+    sns.heatmap(
+        heatmap_data,
+        annot=data_text,
+        fmt="",
+        cmap=custom_blues,
+        linewidths=0.5,
+        linecolor="white",
+        cbar=False,
+        square=True,
+        mask=mask,
+        ax=ax,
+        annot_kws={"fontsize": 5}
+    )
+
+    # Overlay red fill and dashed line for masked (missing) values
+    for j in range(len(data_text)):
+        for i in range(len(data_text[0])):
+            if mask[j, i]:
+                ax.add_patch(plt.Rectangle((i, j), 1, 1, color="indianred", zorder=0))
+                ax.plot([i + 0.4, i + 0.6], [j + 0.5, j + 0.5], linestyle='-', color='black', linewidth=0.5, zorder=1)
+
+    # Axis labels
+    ax.set_xticklabels(x['data'], rotation=0, fontsize=5)
+    ax.set_yticklabels(y['data'], rotation=0, fontsize=5)
+    ax.set_xlabel(x['label'], fontsize=5)
+    ax.set_title(f"{kwargs['workload']} {kwargs['exp_type']}", fontsize=label_fontsize, y=0.95)
+
+    plt.tight_layout()
     if path: plt.savefig(path, dpi=200, transparent=True)
     else: plt.show()
     plt.close()
