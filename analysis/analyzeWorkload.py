@@ -58,7 +58,7 @@ def analyzeIterTime():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "inference"
+    worktype = "training"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
@@ -71,8 +71,6 @@ def analyzeIterTime():
                 per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
                 datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, max_num_procs=max_num_procs)
         input_str = generate_input_str("sipam", **args)
-        print(input_str)
-        sys.exit()
         output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
         assert(os.path.isfile(output_file)), output_file
         exec_output = util.parse_JSON(output_file)
@@ -228,7 +226,7 @@ def analyzeArithmeticIntensity():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "inference"
+    worktype = "training"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
@@ -261,7 +259,7 @@ def analyzeArithmeticIntensity():
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
     y_ = {"label": "FLOPs/Byte", "data": job_stats, "log": None, "limit": (0, 1100)}
-    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0,0.65), ncol=1)
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0,0.62), ncol=1)
     # plot_util.plotMultiScatterChart(x=x_, y=y_, fig_size=(3.6,3.27), bbox_to_anchor=(0,0.5))
     
 if __name__ == "__main__":

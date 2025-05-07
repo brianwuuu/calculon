@@ -108,17 +108,17 @@ def generate_optim_experiment():
     # --- Hardware Parameters ---
     gpu = "h100"
     workloads = [
-                #  "megatron-126M",
-                #  "megatron-530M",
-                #  "megatron-1B",
-                #  "megatron-5B", 
-                #  "megatron-22B", 
-                #  "megatron-40B",
-                #  "anthropic-52B",
-                #  "chinchilla-64B",
+                 "megatron-126M",
+                 "megatron-530M",
+                 "megatron-1B",
+                 "megatron-5B", 
+                 "megatron-22B", 
+                 "megatron-40B",
+                 "anthropic-52B",
+                 "chinchilla-64B",
                 #  "turing-530B",
                 #  "gpt3-13B",
-                #  "gpt3-175B",
+                 "gpt3-175B",
                  "megatron-1T",
                  ]
     mems = ["HBM2E"]
@@ -130,10 +130,10 @@ def generate_optim_experiment():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "inference"
+    worktype = "training"
     max_batch_sizes = [2048] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
     seq_lens = [2048] # [512, 1024, 2048, 4096, 8192]
-    max_num_processors = [4096] # 128, 256, 512, 1024, 2048, 4096
+    max_num_processors = [128] # 128, 256, 512, 1024, 2048, 4096
     num_iter = 5
     
     # optimized experiments

@@ -73,7 +73,7 @@ class SiPAMExecution(calculon.CommandLine):
       model = Llm(app, logger)
       model.compile(syst, exe)
       model.run_optim(syst)
-      
+
       # Runs SiPAM optimization and update system params
       est_num_procs, config = SiPAMExecution.optimize(model, config)
       SiPAMExecution.set_syst_params(syst, config)
@@ -93,7 +93,7 @@ class SiPAMExecution(calculon.CommandLine):
       print(f"{dots(6)} {color(f'{num_procs} GPUs')} = {exe_json['tensor_par']}TP x {exe_json['pipeline_par']}PP x {exe_json['data_par']}DP")
       print(f"{dots(6)} {color('AI')}: {stats['arithmetic_intensity']['total']}, {color('Memory BW')}: {config['system']['mem1']['GBps']}GBps")
       print(f"{dots(6)} {color('Mem Needed')}: {stats['proc_mem_tier1_cap_req']/(1024**3)}GB, {color('Memory Cap')}: {config['system']['mem1']['GiB']}GB\n")
-      
+
       update = not best_output or output[0]['stats']['total_time_aggregate'] < best_output[0]['stats']['total_time_aggregate']
       best_output = output if update else best_output 
       best_config = config if update else best_config 
@@ -130,7 +130,6 @@ class SiPAMExecution(calculon.CommandLine):
       params = SiPAMExecution.build_params(est_num_procs, app, syst, max_batch_size, worktype, datatype)
       output = SiPAMExecution.check_capacity(params)
       net_bw_limit = config["system"]["networks"][0]["bandwidth"] - config["system"]["mem1"]["GBps_orig"] > config["system"]["networks"][0]["min_bandwidth"]
-      print(config["system"]["networks"][0]["bandwidth"], config["system"]["mem1"]["GBps_orig"], config["system"]["networks"][0]["min_bandwidth"])
       if est_num_procs >= max_num_procs:
         if net_bw_limit:
           config = SiPAMExecution.increase_mem_cap(config)
@@ -351,7 +350,7 @@ class SiPAMExecution(calculon.CommandLine):
     ai = ai_list['total'] # matrix, vector, total, mean, median
 
     req_mem_bw_per_gpu_GBps = flops_matrix / ai / 1e9
-    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / curr_config["system"]["mem1"]["GBps_orig"])) + 1
+    num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / curr_config["system"]["mem1"]["GBps_orig"]))
     per_gpu_mem_bw_GBps = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
     per_gpu_mem_cap_GB = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
     num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
