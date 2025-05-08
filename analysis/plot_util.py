@@ -173,7 +173,7 @@ def plotMultiColBarChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     num_pairs = len(x["data"])
     ind = np.arange(num_pairs)
     width = 0.4
-    fig, ax = plt.subplots(1, figsize=fig_size, dpi=200)
+    fig, ax = plt.subplots(1, figsize=fig_size, dpi=400)
     for i, parameter in enumerate(y["data"].keys()):
         ax.bar(ind+i*width, y["data"][parameter], 
                label=parameter, width=width, 
@@ -182,13 +182,13 @@ def plotMultiColBarChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
                )
     x_ticks_loc = [coord + width/2 for coord in range(len(x['data']))]
     ax.set_xticks(x_ticks_loc)
-    ax.set_xticklabels(x["data"], rotation=30, ha="right")
+    ax.set_xticklabels(x["data"], rotation=0, ha="center")
     # ax.set_xlabel(x["label"], fontsize=label_fontsize)
-    ax.set_ylabel(y["label"], fontsize=label_fontsize)
+    ax.set_ylabel(y["label"], fontsize=label_fontsize-2)
     if 'title' in kwargs: ax.set_title(kwargs['title'], y=1.15, pad=-10, fontsize=label_fontsize)
     ax.yaxis.offsetText.set_fontsize(label_fontsize)
-    ax.tick_params(axis='x', labelsize=tick_fontsize-1)
-    ax.tick_params(axis='y', labelsize=tick_fontsize)
+    ax.tick_params(axis='x', labelsize=tick_fontsize-2)
+    ax.tick_params(axis='y', labelsize=tick_fontsize-2)
     if "log" in y.keys() and y["log"]: ax.set_yscale('log',base=y["log"])
     if "log" in x.keys() and x["log"]: ax.set_xscale('log',base=x["log"])
     if "limit" in y.keys() and y["limit"]: ax.set_ylim(*y['limit'])
@@ -199,7 +199,7 @@ def plotMultiColBarChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.2)
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.2)
     ax.grid(which='minor', axis='y', linestyle='--',linewidth=0.2)
-    plt.legend(bbox_to_anchor=kwargs['bbox_to_anchor'], loc='lower left', fontsize=tick_fontsize, ncol=kwargs['ncol'])
+    plt.legend(bbox_to_anchor=kwargs['bbox_to_anchor'], loc='lower left', fontsize=tick_fontsize-2, ncol=kwargs['ncol'])
     plt.tight_layout()
     if path: plt.savefig(path, dpi=200, transparent=False, bbox_inches='tight')
     else: plt.show()

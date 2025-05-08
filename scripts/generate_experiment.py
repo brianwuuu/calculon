@@ -106,23 +106,23 @@ def generate_optim_experiment():
     Generates optimized and baseline experiment configuration files and sets up corresponding experiments.
     """
     # --- Hardware Parameters ---
-    gpu = "h100"
     workloads = [
-                 "megatron-126M",
-                 "megatron-530M",
-                 "megatron-1B",
-                 "megatron-5B", 
-                 "megatron-22B", 
-                 "megatron-40B",
-                 "anthropic-52B",
-                 "chinchilla-64B",
+                #  "megatron-126M",
+                #  "megatron-530M",
+                #  "megatron-1B",
+                #  "megatron-5B", 
+                #  "megatron-22B", 
+                #  "megatron-40B",
+                #  "anthropic-52B",
+                #  "chinchilla-64B",
                 #  "turing-530B",
                 #  "gpt3-13B",
                  "gpt3-175B",
-                 "megatron-1T",
+                #  "megatron-1T",
                  ]
-    mems = ["HBM2E"]
-    total_length_mm = 96
+    gpus = ["b100"] # "a100", "h100", "b100"
+    mems = ["HBM2"] # "HBM2", "HBM2E", "HBM3"
+    total_length_mm = 120
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
@@ -138,8 +138,8 @@ def generate_optim_experiment():
     
     # optimized experiments
     optim_config_files = []
-    for per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns, max_batch_size, seq_len, max_num_procs in utilities.cartesian_product(
-        [per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns, max_batch_sizes, seq_lens, max_num_processors]):
+    for gpu, per_pic_bw_GBps, workload, mem, datatype, mem_add_lat_ns, net_lat_ns, max_batch_size, seq_len, max_num_procs in utilities.cartesian_product(
+        [gpus, per_pic_bws_GBps, workloads, mems, datatypes, mem_add_lats_ns, net_lats_ns, max_batch_sizes, seq_lens, max_num_processors]):
         args = dict(total_length_mm=total_length_mm, per_pic_length_mm=per_pic_length_mm,
                     per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
                     datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, seq_len=seq_len,
@@ -149,8 +149,8 @@ def generate_optim_experiment():
     setup_optim_experiment(optim_config_files, exp_name="optim")
 
     baseline_config_files = []
-    for workload, mem, datatype, net_lat_ns, max_batch_size, seq_len, max_num_procs in utilities.cartesian_product(
-        [workloads, mems, datatypes, net_lats_ns, max_batch_sizes, seq_lens, max_num_processors]):
+    for gpu, workload, mem, datatype, net_lat_ns, max_batch_size, seq_len, max_num_procs in utilities.cartesian_product(
+        [gpus, workloads, mems, datatypes, net_lats_ns, max_batch_sizes, seq_lens, max_num_processors]):
         args = dict(net_lat_ns=net_lat_ns,datatype=datatype, worktype=worktype, 
                     max_batch_size=max_batch_size,seq_len=seq_len,max_num_procs=max_num_procs)
         optim_config = generate_baseline_configs(gpu, workload, mem, **args)
