@@ -44,8 +44,8 @@ def analyzeIterTime():
                    ("h100_80g_nvl8", "HBM2E", 96), 
                    ("b100_192g", "HBM3", 120),
                    ("b100_192g", "HBM2", 120),
-                   ("b100_192g", "HBM4", 120),
-                   ("b100_192g", "HBM2E", 120),
+                #    ("b100_192g", "HBM4", 120),
+                #    ("b100_192g", "HBM2E", 120),
                    ]
     workloads = [
                 #  "megatron-126M",
@@ -88,6 +88,8 @@ def analyzeIterTime():
         job_stats[sys_str].append(exec_output["total_time_aggregate"])
 
     pprint.pprint(job_stats)
+    bw_density_Gbps_per_mm = [bw*8/per_pic_length_mm/1e3 for bw in per_pic_bws_GBps]
+    # x_ = {"label": "Bandwidth Density (Tbps/mm)", "data": bw_density_Gbps_per_mm, "log": 2, "limit": None}
     x_ = {"label": "Per I/O Bandwidth (GBps)", "data": per_pic_bws_GBps, "log": 2, "limit": None}
     y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log": None, "limit": None}
     plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)

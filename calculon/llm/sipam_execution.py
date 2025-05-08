@@ -77,7 +77,7 @@ class SiPAMExecution(calculon.CommandLine):
       # Runs SiPAM optimization and update system params
       est_num_procs, config = SiPAMExecution.optimize(model, config)
       SiPAMExecution.set_syst_params(syst, config)
-      
+      est_num_procs = 128
       # Build the parallel search params and find minimum num processors to fit the model
       num_procs, output, config = SiPAMExecution.find_min_num_procs(est_num_procs, app, syst, config)
       SiPAMExecution.set_syst_params(syst, config)
@@ -343,33 +343,46 @@ class SiPAMExecution(calculon.CommandLine):
 
   @staticmethod
   def optimize(model: Llm, curr_config: dict):
-    optim_config = copy.deepcopy(curr_config)
-    datatype = curr_config["datatype"]
-    flops_matrix = curr_config["system"]["matrix"][datatype]["tflops"] * 1e12
+    # Load arithmetic info from model
     ai_list = model.get_arithmetic_intensity()
     ai = ai_list['total'] # matrix, vector, total, mean, median
 
+    # Load compute hardware info
+    optim_config = copy.deepcopy(curr_config)
+    datatype = curr_config["datatype"]
+    flops_matrix = curr_config["system"]["matrix"][datatype]["tflops"] * 1e12
+    
+    # Load I/O hardware information
+    min_num_mem_pic_per_gpu = min_num_net_pic_per_gpu = 1
+    max_num_mem_pic_per_gpu = optim_config["system"]["max_num_mem_pic_per_gpu"]
+    per_pic_bw_GBps = optim_config["system"]["per_pic_bw_GBps"]
+    per_pic_length_mm = optim_config["system"]["per_pic_length_mm"]
+    total_length_mm = optim_config["system"]["total_length_mm"]
+
+    # Determine number of memory units needed per gpu and number of I/Os needed for memory
     req_mem_bw_per_gpu_GBps = flops_matrix / ai / 1e9
     num_req_mu_per_gpu = int(np.ceil(req_mem_bw_per_gpu_GBps / curr_config["system"]["mem1"]["GBps_orig"]))
-    per_gpu_mem_bw_GBps = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
-    per_gpu_mem_cap_GB = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
+    per_gpu_req_mem_bw_GBps = num_req_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
+    num_mem_pic_per_gpu = max(min_num_mem_pic_per_gpu,
+                            min(max_num_mem_pic_per_gpu,
+                              int(np.ceil(per_gpu_req_mem_bw_GBps / per_pic_bw_GBps))))
+    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"])
+    print(f"{req_mem_bw_per_gpu_GBps=},{num_req_mu_per_gpu=},{per_gpu_req_mem_bw_GBps=},{num_mem_pic_per_gpu=}, {num_mu_per_gpu=} ")
+    per_gpu_mem_bw_GBps = num_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
+    per_gpu_mem_cap_GB = num_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
+
+    # Estimate minimum number of processors needed
     num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
     num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
     # num_procs = (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
     num_procs = min(num_procs, curr_config["max_num_procs"])
 
-    min_num_mem_pic_per_gpu = 1
-    max_num_mem_pic_per_gpu = optim_config["system"]["max_num_mem_pic_per_gpu"]
-    per_pic_bw_GBps = optim_config["system"]["per_pic_bw_GBps"]
-    per_pic_length_mm = optim_config["system"]["per_pic_length_mm"]
-    total_length_mm = optim_config["system"]["total_length_mm"]
-    num_mem_pic_per_gpu = max(min_num_mem_pic_per_gpu,
-                            min(max_num_mem_pic_per_gpu,
-                              int(np.ceil(per_gpu_mem_bw_GBps / per_pic_bw_GBps))))
+    # Determine number of I/Os needed for networking
     num_net_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_mem_pic_per_gpu)) // per_pic_length_mm # round down
     net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
-    min_net_bw_GBps = 1 * per_pic_bw_GBps
-    
+    min_net_bw_GBps = min_num_net_pic_per_gpu * per_pic_bw_GBps
+    print(f"{per_gpu_mem_bw_GBps=}, {per_gpu_mem_cap_GB=}, {net_bw_GBps=}")
+    sys.exit()
     optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
     optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
     optim_config["system"]["mem2"]["GiB"] = 0
