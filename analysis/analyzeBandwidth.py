@@ -40,17 +40,18 @@ sys_map = {
 
 def analyzeIterTime():
     # --- Hardware Parameters ---
-    compute_sys = [("a100_80g", "HBM2", 96), 
+    compute_sys = [
+                   ("a100_80g", "HBM2", 96), 
                    ("h100_80g_nvl8", "HBM2E", 96), 
                    ("b100_192g", "HBM3", 120),
-                   ("b100_192g", "HBM2", 120),
+                #    ("b100_192g", "HBM2", 120),
                 #    ("b100_192g", "HBM4", 120),
                 #    ("b100_192g", "HBM2E", 120),
                    ]
     workloads = [
                 #  "megatron-126M",
                 #  "megatron-530M",
-                #  "megatron-1B",
+                 "megatron-1B",
                 #  "megatron-5B", 
                 #  "megatron-22B", 
                 #  "megatron-40B",
@@ -59,23 +60,24 @@ def analyzeIterTime():
                 #  "chinchilla-64B",
                 #  "turing-530B",
                 #  "gpt3-13B",
-                 "gpt3-175B",
+                #  "gpt3-175B",
                  ]
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [32, 64, 128, 256, 512, 1024, 2048, 4096]
+    per_pic_bws_GBps = [64, 128, 256, 512, 1024, 2048,]
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
+    worktype = "inference"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
-    max_num_procs = 4096
+    max_num_procs_map = {"megatron-126M":8, "megatron-1B":16, "megatron-5B":8, "gpt3-175B": 256, "megatron-1T":2048}
     
     job_stats = defaultdict(list)
     for sys, workload, datatype, per_pic_bw_GBps, mem_add_lat_ns, net_lat_ns, seq_len, max_batch_size in util.cartesian_product(
         [compute_sys, workloads, datatypes, per_pic_bws_GBps, mem_add_lats_ns, net_lats_ns, seq_lens, max_batch_sizes]):
+        max_num_procs = max_num_procs_map[workload]
         args = dict(workload=workload, gpu=sys[0], mem=sys[1], seq_len=seq_len,
                 total_length_mm=sys[2], per_pic_length_mm=per_pic_length_mm,
                 per_pic_bw_GBps=per_pic_bw_GBps, mem_add_lat_ns=mem_add_lat_ns, net_lat_ns=net_lat_ns,
@@ -85,14 +87,15 @@ def analyzeIterTime():
         output_file = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")[input_str]
         assert(os.path.isfile(output_file)), output_file
         exec_output = util.parse_JSON(output_file)
+        # job_stats[sys_str].append(exec_output["total_time"])
         job_stats[sys_str].append(exec_output["total_time_aggregate"])
 
     pprint.pprint(job_stats)
     bw_density_Gbps_per_mm = [bw*8/per_pic_length_mm/1e3 for bw in per_pic_bws_GBps]
     # x_ = {"label": "Bandwidth Density (Tbps/mm)", "data": bw_density_Gbps_per_mm, "log": 2, "limit": None}
-    x_ = {"label": "Per I/O Bandwidth (GBps)", "data": per_pic_bws_GBps, "log": 2, "limit": None}
-    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log": None, "limit": None}
-    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)
+    x_ = {"label": "Per I/O Bandwidth (Gbps)", "data": [x*8 for x in per_pic_bws_GBps], "log": 2, "limit": None}
+    y_ = {"label": "Iteration Time (s)", "data": job_stats, "log": None, "limit": None}
+    plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(2,1.5), bbox_to_anchor=(0.25,1), ncol=3)
 
 
 def analyzeGPUHour():

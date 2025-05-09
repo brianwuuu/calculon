@@ -76,8 +76,9 @@ class SiPAMExecution(calculon.CommandLine):
 
       # Runs SiPAM optimization and update system params
       est_num_procs, config = SiPAMExecution.optimize(model, config)
+      # est_num_procs, config = SiPAMExecution.max_mem_bw(model, config)
       SiPAMExecution.set_syst_params(syst, config)
-      est_num_procs = 128
+
       # Build the parallel search params and find minimum num processors to fit the model
       num_procs, output, config = SiPAMExecution.find_min_num_procs(est_num_procs, app, syst, config)
       SiPAMExecution.set_syst_params(syst, config)
@@ -111,7 +112,7 @@ class SiPAMExecution(calculon.CommandLine):
       output_dir = utilities.create_output_directory(best_config["output_file_dir"], model_str, arch_str + exp_str)
       output_file_name = output_dir + sys_str
       output_cache_name = best_config["output_file_dir"] + "cache.json"
-      logger.info(f'[SiPAM] Output: {output_file_name}')
+      logger.info(f'[SiPAM] Output: {output_file_name}\n')
       output_dict = best_output[0]['execution'] | best_output[0]['stats']
       calculon.io.write_json_file(output_dict, output_file_name)
       calculon.io.extend_json_file({best_config['input_str']:output_file_name}, output_cache_name)
@@ -120,13 +121,12 @@ class SiPAMExecution(calculon.CommandLine):
     return 0
   
   @staticmethod
-  def find_min_num_procs(est_num_procs, app, syst, config):
+  def find_min_num_procs(est_num_procs:int, app:Llm, syst:System, config:dict):
     print(f"[SiPAM] Searching for minimum number of processors ...")
     max_batch_size, max_num_procs = config['max_batch_size'], config['max_num_procs']
     worktype, datatype = config['worktype'], config['datatype']
     output = []
     while not output:
-      print(f"[SiPAM] Current processor number = {est_num_procs}")
       params = SiPAMExecution.build_params(est_num_procs, app, syst, max_batch_size, worktype, datatype)
       output = SiPAMExecution.check_capacity(params)
       net_bw_limit = config["system"]["networks"][0]["bandwidth"] - config["system"]["mem1"]["GBps_orig"] > config["system"]["networks"][0]["min_bandwidth"]
@@ -366,8 +366,7 @@ class SiPAMExecution(calculon.CommandLine):
     num_mem_pic_per_gpu = max(min_num_mem_pic_per_gpu,
                             min(max_num_mem_pic_per_gpu,
                               int(np.ceil(per_gpu_req_mem_bw_GBps / per_pic_bw_GBps))))
-    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"])
-    print(f"{req_mem_bw_per_gpu_GBps=},{num_req_mu_per_gpu=},{per_gpu_req_mem_bw_GBps=},{num_mem_pic_per_gpu=}, {num_mu_per_gpu=} ")
+    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"]) + 2
     per_gpu_mem_bw_GBps = num_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
     per_gpu_mem_cap_GB = num_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
 
@@ -381,8 +380,51 @@ class SiPAMExecution(calculon.CommandLine):
     num_net_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_mem_pic_per_gpu)) // per_pic_length_mm # round down
     net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
     min_net_bw_GBps = min_num_net_pic_per_gpu * per_pic_bw_GBps
-    print(f"{per_gpu_mem_bw_GBps=}, {per_gpu_mem_cap_GB=}, {net_bw_GBps=}")
-    sys.exit()
+    
+    # Set optimized configuration
+    optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
+    optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
+    optim_config["system"]["mem2"]["GiB"] = 0
+    optim_config["system"]["mem2"]["GBps"] = 0
+    optim_config["system"]["mem2"]["ns"] = 0
+    optim_config["system"]["networks"][0]["bandwidth"] = net_bw_GBps
+    optim_config["system"]["networks"][1]["bandwidth"] = net_bw_GBps
+    optim_config["system"]["networks"][0]["min_bandwidth"] = min_net_bw_GBps
+    optim_config["system"]["networks"][1]["min_bandwidth"] = min_net_bw_GBps
+    return num_procs, optim_config
+  
+  @staticmethod
+  def max_mem_bw(model: Llm, curr_config: dict):
+    optim_config = copy.deepcopy(curr_config)
+    
+    # Load I/O hardware information
+    min_num_mem_pic_per_gpu = min_num_net_pic_per_gpu = 1
+    max_num_mem_pic_per_gpu = optim_config["system"]["max_num_mem_pic_per_gpu"]
+    per_pic_bw_GBps = optim_config["system"]["per_pic_bw_GBps"]
+    per_pic_length_mm = optim_config["system"]["per_pic_length_mm"]
+    total_length_mm = optim_config["system"]["total_length_mm"]
+
+    # First satisfy the network I/O bandwidth requirement
+    # num_net_pic_per_gpu = max(min_num_net_pic_per_gpu, 
+    #                           min(math.ceil(curr_config["system"]["networks"][0]["bandwidth"]/per_pic_bw_GBps), 
+    #                               max_num_mem_pic_per_gpu))
+    num_net_pic_per_gpu = 1
+    net_bw_GBps = num_net_pic_per_gpu * per_pic_bw_GBps
+    min_net_bw_GBps = min_num_net_pic_per_gpu * per_pic_bw_GBps
+    
+    # Determine the number of memory I/Os
+    num_mem_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_net_pic_per_gpu)) // per_pic_length_mm
+    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"])
+    per_gpu_mem_bw_GBps = num_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
+    per_gpu_mem_cap_GB = num_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
+    
+    # Estimate minimum number of processors needed
+    num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
+    num_procs = 1<<(num_procs-1).bit_length() # nearest power of 2
+    # num_procs = (num_procs + 1) // 2 * 2 * 10 # nearest multiple of 2
+    num_procs = min(num_procs, curr_config["max_num_procs"])
+    
+    # Set optimized configuration
     optim_config["system"]["mem1"]["GiB"] = per_gpu_mem_cap_GB
     optim_config["system"]["mem1"]["GBps"] = per_gpu_mem_bw_GBps
     optim_config["system"]["mem2"]["GiB"] = 0

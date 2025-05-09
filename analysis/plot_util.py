@@ -14,6 +14,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.ticker as ticker
+from matplotlib.ticker import ScalarFormatter
 from matplotlib.colors import LinearSegmentedColormap
 
 mpl.rcParams['font.family'] = "serif"
@@ -326,7 +327,7 @@ def plotMultiColStackedBarSubChart(x, y, path="", fig_dim=(3,3), fig_size=(2.5,2
 def plotMultiLineChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     print("[ANALYSIS] Plotting multiline chart to " + path)
     # plt.style.use(['ggplot'])
-    fig, ax = plt.subplots(1, figsize=fig_size, dpi=200)
+    fig, ax = plt.subplots(1, figsize=fig_size, dpi=400)
     for i, param in enumerate(y["data"].keys()):
         ax.plot(x["data"], y['data'][param], 
                 label=param, 
@@ -338,12 +339,6 @@ def plotMultiLineChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
                 linewidth=plot_linewidth,
                 # alpha=0.9 # transparency
                 )
-    ax.set_xlabel(x["label"], fontsize=label_fontsize)
-    ax.set_ylabel(y["label"], fontsize=label_fontsize)
-    ax.tick_params(axis='x', labelsize=label_fontsize)
-    ax.tick_params(axis='y', labelsize=label_fontsize)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center", fontsize=tick_fontsize) 
-    ax.yaxis.offsetText.set_fontsize(label_fontsize)
     if "title" in kwargs: ax.set_title(kwargs["title"], y=1.15, pad=-10, fontsize=label_fontsize)
     if 'log' in y.keys() and y["log"]: ax.set_yscale('log',base=y["log"])
     if 'log' in x.keys() and x["log"]: ax.set_xscale('log',base=x["log"])
@@ -351,6 +346,14 @@ def plotMultiLineChart(x, y, path="", fig_size=(2.5,2.5), **kwargs):
     if "limit" in x.keys() and x["limit"]: ax.set_xlim(*x['limit'])
     if "sci" in y.keys() and y["sci"]: ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     if "sci" in x.keys() and x["sci"]: ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    ax.set_xlabel(x["label"], fontsize=label_fontsize)
+    ax.set_ylabel(y["label"], fontsize=label_fontsize)
+    ax.tick_params(axis='x', labelsize=label_fontsize)
+    ax.tick_params(axis='y', labelsize=label_fontsize)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center", fontsize=tick_fontsize) 
+    ax.xaxis.set_major_formatter(ScalarFormatter()) # make axis not in exponential
+    ax.ticklabel_format(style='plain', axis='x') 
+    ax.yaxis.offsetText.set_fontsize(label_fontsize)
     ax.grid(which='major', axis='x', linestyle=':', linewidth=0.4)
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.4)
     ax.grid(which='major', axis='y', linestyle='--',linewidth=0.4)

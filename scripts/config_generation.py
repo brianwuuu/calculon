@@ -177,7 +177,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     new_system["mem1"]["GBps"] = 5 * mem_info['bw_GBps']
     new_system["mem1"]["ns"] = mem_info['lat_ns']
     new_system["mem2"]["GiB"] = 1000000 # set to large for first iteration
-    new_system["mem2"]["GBps"] = 5 * mem_info['bw_GBps']
+    new_system["mem2"]["GBps"] = 7 * mem_info['bw_GBps'] if gpu == "b100_192g" else 5 * mem_info['bw_GBps']
     new_system["mem2"]["ns"] = mem_info['lat_ns']
     new_system["processing_mode"] = "roofline"
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
