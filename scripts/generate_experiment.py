@@ -109,7 +109,7 @@ def generate_optim_experiment():
     workloads = [
                 #  "megatron-126M",
                 #  "megatron-530M",
-                 "megatron-1B",
+                #  "megatron-1B",
                 #  "megatron-5B", 
                 #  "megatron-22B", 
                 #  "megatron-40B",
@@ -118,22 +118,22 @@ def generate_optim_experiment():
                 #  "turing-530B",
                 #  "gpt3-13B",
                 #  "gpt3-175B",
-                #  "megatron-1T",
+                 "megatron-1T",
                  ]
     gpus = ["b100"] # "a100", "h100", "b100"
     mems = ["HBM3"] # "HBM2", "HBM2E", "HBM3"
     total_length_mm = 120
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [64] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 64, 128, 256, 512, 1024, 2048
+    per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 64, 128, 256, 512, 1024, 2048
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "inference"
-    max_batch_sizes = [2048] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
+    worktype = "training"
+    max_batch_sizes = [2**i for i in range(int(8).bit_length(), int(32).bit_length())] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
     seq_lens = [2048] # [512, 1024, 2048, 4096, 8192]
-    max_num_processors = [16] # 128, 256, 512, 1024, 2048, 4096
+    max_num_processors = [4096] # 128, 256, 512, 1024, 2048, 4096
     num_iter = 5
     
     # optimized experiments

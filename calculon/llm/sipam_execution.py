@@ -78,7 +78,7 @@ class SiPAMExecution(calculon.CommandLine):
       est_num_procs, config = SiPAMExecution.optimize(model, config)
       # est_num_procs, config = SiPAMExecution.max_mem_bw(model, config)
       SiPAMExecution.set_syst_params(syst, config)
-
+      # est_num_procs = 2048
       # Build the parallel search params and find minimum num processors to fit the model
       num_procs, output, config = SiPAMExecution.find_min_num_procs(est_num_procs, app, syst, config)
       SiPAMExecution.set_syst_params(syst, config)
@@ -366,7 +366,7 @@ class SiPAMExecution(calculon.CommandLine):
     num_mem_pic_per_gpu = max(min_num_mem_pic_per_gpu,
                             min(max_num_mem_pic_per_gpu,
                               int(np.ceil(per_gpu_req_mem_bw_GBps / per_pic_bw_GBps))))
-    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"]) + 2
+    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"])
     per_gpu_mem_bw_GBps = num_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
     per_gpu_mem_cap_GB = num_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
 
