@@ -7,6 +7,7 @@ scripts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../scrip
 sys.path.append(scripts_path)
 import util
 import pprint
+import pathlib
 import plot_util
 from collections import defaultdict
 from resource_optimization import optimize_mem_net, baseline_mem_net
@@ -19,7 +20,7 @@ from table import get_mem_info, get_workload_info, get_cu_info
 ####################################################################################################
 
 print("[Analysis] Start ...")
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = f"{pathlib.Path(__file__).parent.resolve()}" + "/../"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
@@ -44,15 +45,18 @@ def analyzeIterationTime():
     compute_sys = [("a100_80g", "HBM2", 96), 
                    ("a100_80g", "HBM2E", 96), 
                    ("a100_80g", "HBM3", 96),
-                   ("a100_80g", "HBM4", 96),
+                   ("a100_80g", "HBM3E", 96),
+                #    ("a100_80g", "HBM4", 96),
                    ("h100_80g_nvl8", "HBM2", 96), 
                    ("h100_80g_nvl8", "HBM2E", 96), 
                    ("h100_80g_nvl8", "HBM3", 96),
-                   ("h100_80g_nvl8", "HBM4", 96),
+                   ("h100_80g_nvl8", "HBM3E", 96),
+                #    ("h100_80g_nvl8", "HBM4", 96),
                    ("b100_192g", "HBM2", 120), 
                    ("b100_192g", "HBM2E", 120), 
                    ("b100_192g", "HBM3", 120),
-                   ("b100_192g", "HBM4", 120)
+                   ("b100_192g", "HBM3E", 120),
+                #    ("b100_192g", "HBM4", 120)
                    ]
     workloads = [
                 #  "megatron-126M",
@@ -75,7 +79,7 @@ def analyzeIterationTime():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
+    worktype = "inference"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 128
@@ -96,7 +100,7 @@ def analyzeIterationTime():
         norm_time = exec_output["total_time_aggregate"]
         # job_stats[f'{sys[1]}-S'].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/(1024**3)/mem_cap_sipam)
         # job_stats["SiPAM"].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/(1024**3)/mem_cap_sipam)
-        job_stats["SiPAM"].append(exec_output["total_time_aggregate"])
+        job_stats["SiPAM"].append(exec_output["total_time_aggregate"]/norm_time)
         # job_stats["SiPAM"].append(exec_output["total_time_aggregate"]*exec_output["num_procs"]/3600)
 
         input_str = generate_input_str("baseline", **args)
@@ -108,7 +112,7 @@ def analyzeIterationTime():
         mem_cap_baseline = int(output_file.split("/")[-1].split("_")[5].split("GB")[0])
         # job_stats[f'{sys[1]}-B'].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/(1024**3)/mem_cap_baseline)
         # job_stats["Baseline"].append((exec_output["proc_mem_tier1_cap_req"] + exec_output["proc_mem_tier2_cap_req"])/(1024**3)/mem_cap_baseline)
-        job_stats["Baseline"].append(exec_output["total_time_aggregate"])
+        job_stats["Baseline"].append(exec_output["total_time_aggregate"]/norm_time)
         # job_stats["Baseline"].append(exec_output["total_time_aggregate"]*exec_output["num_procs"]/3600)
 
     pprint.pprint(job_stats)
@@ -117,7 +121,7 @@ def analyzeIterationTime():
     # compute_sys_str = ["A100", "H100", "B100"]
     x_ = {"label": "Compute System", "data": compute_sys_str, "log":None, "limit": None}
     y_ = {"label": "Iteration Time (s)", "data": job_stats, "log":None, "limit": None}
-    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(3.5,1.2), bbox_to_anchor=(0.7,0.65), ncol=1)
+    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(3.5,1.2), bbox_to_anchor=(0.7,0.60), ncol=1)
     # plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(2.5,1.5), bbox_to_anchor=(0.49,0.75), ncol=1)
     
 if __name__ == "__main__":

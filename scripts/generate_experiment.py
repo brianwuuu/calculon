@@ -121,20 +121,20 @@ def generate_optim_experiment():
                  "megatron-1T",
                  ]
     gpus = ["b100"] # "a100", "h100", "b100"
-    mems = ["HBM3"] # "HBM2", "HBM2E", "HBM3"
+    mems = ["HBM3E"] # "HBM2", "HBM2E", "HBM3", "HBM3E"
     total_length_mm = 120
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 64, 128, 256, 512, 1024, 2048
+    per_pic_bws_GBps = [64, 128, 256, 512, 1024, 2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 64, 128, 256, 512, 1024, 2048
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
-    max_batch_sizes = [2**i for i in range(int(8).bit_length(), int(32).bit_length())] # [2048], [2**i for i in range(int(8).bit_length(), int(2048).bit_length())]
+    worktype = "inference"
+    max_batch_sizes = [2048] # [2048], [2**i for i in range(int(8).bit_length(), int(8192).bit_length())]
     seq_lens = [2048] # [512, 1024, 2048, 4096, 8192]
-    max_num_processors = [4096] # 128, 256, 512, 1024, 2048, 4096
-    num_iter = 5
+    max_num_processors = [2048] # [16, 32, 64, 128], [128, 256, 512, 1024]
+    num_iter = 10
     
     # optimized experiments
     optim_config_files = []
@@ -153,8 +153,8 @@ def generate_optim_experiment():
         [gpus, workloads, mems, datatypes, net_lats_ns, max_batch_sizes, seq_lens, max_num_processors]):
         args = dict(net_lat_ns=net_lat_ns,datatype=datatype, worktype=worktype, 
                     max_batch_size=max_batch_size,seq_len=seq_len,max_num_procs=max_num_procs)
-        optim_config = generate_baseline_configs(gpu, workload, mem, **args)
-        baseline_config_files.append(optim_config)
+        baseline_config = generate_baseline_configs(gpu, workload, mem, **args)
+        baseline_config_files.append(baseline_config)
     setup_optim_experiment(baseline_config_files, exp_name="baseline")
 
 if __name__ == "__main__":

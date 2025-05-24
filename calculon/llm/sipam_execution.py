@@ -78,7 +78,7 @@ class SiPAMExecution(calculon.CommandLine):
       est_num_procs, config = SiPAMExecution.optimize(model, config)
       # est_num_procs, config = SiPAMExecution.max_mem_bw(model, config)
       SiPAMExecution.set_syst_params(syst, config)
-      # est_num_procs = 2048
+      # est_num_procs = config['max_num_procs']
       # Build the parallel search params and find minimum num processors to fit the model
       num_procs, output, config = SiPAMExecution.find_min_num_procs(est_num_procs, app, syst, config)
       SiPAMExecution.set_syst_params(syst, config)
@@ -100,8 +100,8 @@ class SiPAMExecution(calculon.CommandLine):
       best_config = config if update else best_config 
       
       # Break if curr_num_procs is already in list
-      if num_procs_list and (num_procs, exe_json['tensor_par'], exe_json['pipeline_par'], exe_json['data_par']) in num_procs_list: break
-      num_procs_list.append((num_procs, exe_json['tensor_par'], exe_json['pipeline_par'], exe_json['data_par']))
+      if num_procs_list and (num_procs, exe_json['tensor_par'], exe_json['pipeline_par'], exe_json['data_par'], config['system']['mem1']['GBps']) in num_procs_list: break
+      num_procs_list.append((num_procs, exe_json['tensor_par'], exe_json['pipeline_par'], exe_json['data_par'], config['system']['mem1']['GBps']))
     
     if best_output:
       # write results to output file
@@ -414,7 +414,7 @@ class SiPAMExecution(calculon.CommandLine):
     
     # Determine the number of memory I/Os
     num_mem_pic_per_gpu = (total_length_mm - (per_pic_length_mm * num_net_pic_per_gpu)) // per_pic_length_mm
-    num_mu_per_gpu = int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"])
+    num_mu_per_gpu = max(int(num_mem_pic_per_gpu * per_pic_bw_GBps / curr_config["system"]["mem1"]["GBps_orig"]), 1)
     per_gpu_mem_bw_GBps = num_mu_per_gpu * curr_config["system"]["mem1"]["GBps_orig"]
     per_gpu_mem_cap_GB = num_mu_per_gpu * curr_config["system"]["mem1"]["GiB_orig"]
     

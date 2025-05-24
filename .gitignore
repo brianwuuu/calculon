@@ -48,3 +48,5 @@ nosetests.xml
 /venv_mac_m1/
 /results/
 /sc23-main/
+/scripts/archive/
+/analysis/archive/

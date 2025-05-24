@@ -7,6 +7,7 @@ scripts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../scrip
 sys.path.append(scripts_path)
 import util
 import pprint
+import pathlib
 import plot_util
 from collections import defaultdict
 from config_generation import generate_input_str
@@ -16,7 +17,7 @@ from config_generation import generate_input_str
 ####################################################################################################
 
 print("[Analysis] Start ...")
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = f"{pathlib.Path(__file__).parent.resolve()}" + "/../"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
@@ -38,7 +39,8 @@ sys_map = {
 def analyzeIterTime():
     # --- Hardware Parameters ---
     compute_sys = [
-                   ("b100_192g", "HBM3", 120),
+                #    ("b100_192g", "HBM3", 120),
+                   ("b100_192g", "HBM3E", 120),
                    ("h100_80g_nvl8", "HBM2E", 96), 
                    ("a100_80g", "HBM2", 96), 
                 #    ("b100_192g", "HBM2", 120),
@@ -57,8 +59,8 @@ def analyzeIterTime():
                 #  "chinchilla-64B",
                 #  "turing-530B",
                 #  "gpt3-13B",
-                #  "gpt3-175B",
-                 "megatron-1T",
+                 "gpt3-175B",
+                #  "megatron-1T",
                  ]
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048]
@@ -70,9 +72,9 @@ def analyzeIterTime():
     worktype = "training"
     max_batch_sizes = [4096] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
-    max_num_processors = [128, 256, 512, 1024] # 16, 32, 64, 128, 256, 512, 1024
+    max_num_processors = [16, 32, 64, 128] # [16, 32, 64, 128], [128, 256, 512, 1024]
     
-    exp_type = "sipam" # "baseline", "sipam"
+    exp_type = "baseline" # "baseline", "sipam"
     exp_map = {"sipam": "SiPAM", "baseline": "Baseline"}
     cache_dict = util.parse_JSON(OUTPUT_DIRECTORY + "cache.json")
     data_text = [[None] * len(max_num_processors) for _ in range(len(compute_sys))]
@@ -86,6 +88,7 @@ def analyzeIterTime():
                         datatype=datatype, worktype=worktype, max_batch_size=max_batch_size, max_num_procs=max_num_procs)
                 input_str = generate_input_str(exp_type, **args)
                 if input_str not in cache_dict:
+                    print(f"[SiPAM] Input not in cache_dict: {input_str}")
                     data_text[i][j] = None
                 else:
                     output_file = cache_dict[input_str]

@@ -1,9 +1,10 @@
 import copy
+import pathlib
 import utilities
 import itertools
 from table import get_mem_info
 
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = f"{pathlib.Path(__file__).parent.resolve()}" + "/../"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
@@ -143,7 +144,7 @@ def generate_optim_configs(gpu, workload, mem, **kwargs):
     sys_dir = utilities.create_directory(batch_dir + system_string + "/")
     optim_filename = sys_dir + f"optim_param_{kwargs['worktype']}.json"
     input_str = generate_input_str("sipam", gpu=gpu, workload=workload, mem=mem, **kwargs)
-    print(f"[Setup] Input String: {input_str}")
+    print(f"[Setup] SiPAM Input String: {input_str}")
     optim_configs = {
         "model": model_base_filename,
         "system": new_system,
@@ -173,11 +174,11 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     system_base = utilities.parse_JSON(system_base_filename)
     new_system = copy.deepcopy(system_base)
     mem_info = get_mem_info(mem)
-    new_system["mem1"]["GiB"] = 5 * mem_info['cap_GB']
-    new_system["mem1"]["GBps"] = 5 * mem_info['bw_GBps']
+    new_system["mem1"]["GiB"] = 8 * mem_info['cap_GB'] if gpu == "b100_192g" else 5 * mem_info['cap_GB']
+    new_system["mem1"]["GBps"] = 8 * mem_info['bw_GBps'] if gpu == "b100_192g" else 5 * mem_info['bw_GBps']
     new_system["mem1"]["ns"] = mem_info['lat_ns']
     new_system["mem2"]["GiB"] = 1000000 # set to large for first iteration
-    new_system["mem2"]["GBps"] = 7 * mem_info['bw_GBps'] if gpu == "b100_192g" else 5 * mem_info['bw_GBps']
+    new_system["mem2"]["GBps"] = 8 * mem_info['bw_GBps'] if gpu == "b100_192g" else 5 * mem_info['bw_GBps']
     new_system["mem2"]["ns"] = mem_info['lat_ns']
     new_system["processing_mode"] = "roofline"
     system_string = utilities.generate_system_file_name_string(new_system).split(".json")[0]
@@ -188,7 +189,7 @@ def generate_baseline_configs(gpu, workload, mem, **kwargs):
     sys_dir = utilities.create_directory(batch_dir + system_string + "/")
     optim_filename = sys_dir + f"baseline_param_{kwargs['worktype']}.json"
     input_str = generate_input_str("baseline", gpu=gpu, workload=workload, mem=mem, **kwargs)
-    
+    print(f"[Setup] Baseline Input String: {input_str}")
     baseline_configs = {
         "model": model_base_filename,
         "system": new_system,

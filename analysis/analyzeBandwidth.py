@@ -7,6 +7,7 @@ scripts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../scrip
 sys.path.append(scripts_path)
 import util
 import pprint
+import pathlib
 import plot_util
 from collections import defaultdict
 from resource_optimization import optimize_mem_net, baseline_mem_net
@@ -19,7 +20,7 @@ from table import get_mem_info, get_workload_info, get_cu_info
 ####################################################################################################
 
 print("[Analysis] Start ...")
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = f"{pathlib.Path(__file__).parent.resolve()}" + "/../"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
@@ -43,7 +44,8 @@ def analyzeIterTime():
     compute_sys = [
                    ("a100_80g", "HBM2", 96), 
                    ("h100_80g_nvl8", "HBM2E", 96), 
-                   ("b100_192g", "HBM3", 120),
+                #    ("b100_192g", "HBM3", 120),
+                   ("b100_192g", "HBM3E", 120),
                 #    ("b100_192g", "HBM2", 120),
                 #    ("b100_192g", "HBM4", 120),
                 #    ("b100_192g", "HBM2E", 120),
@@ -51,11 +53,11 @@ def analyzeIterTime():
     workloads = [
                 #  "megatron-126M",
                 #  "megatron-530M",
-                 "megatron-1B",
+                #  "megatron-1B",
                 #  "megatron-5B", 
                 #  "megatron-22B", 
                 #  "megatron-40B",
-                #  "megatron-1T",
+                 "megatron-1T",
                 #  "anthropic-52B",
                 #  "chinchilla-64B",
                 #  "turing-530B",
@@ -63,7 +65,7 @@ def analyzeIterTime():
                 #  "gpt3-175B",
                  ]
     per_pic_length_mm = 8
-    per_pic_bws_GBps = [64, 128, 256, 512, 1024, 2048,]
+    per_pic_bws_GBps = [64, 128, 256, 512, 1024, 2048]
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
     net_lats_ns = [20]
     

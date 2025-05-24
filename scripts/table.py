@@ -139,6 +139,11 @@ def get_mem_info(mem_type : str) -> dict:
             "lat_ns": 106.7,
             "cap_GB": 24
         },
+        "HBM3E": {
+            "bw_GBps": 1000,
+            "lat_ns": 106.7,
+            "cap_GB": 24
+        },
         "HBM4": {
             "bw_GBps": 1400,
             "lat_ns": 106.7,

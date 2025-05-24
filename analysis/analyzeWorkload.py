@@ -7,6 +7,7 @@ scripts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../scrip
 sys.path.append(scripts_path)
 import util
 import pprint
+import pathlib
 import plot_util
 from collections import defaultdict
 from resource_optimization import optimize_mem_net, baseline_mem_net
@@ -19,7 +20,7 @@ from table import get_mem_info, get_workload_info, get_cu_info
 ####################################################################################################
 
 print("[Analysis] Start ...")
-BASE_DIRECTORY = "/Users/bwu/src/calculon/"
+BASE_DIRECTORY = f"{pathlib.Path(__file__).parent.resolve()}" + "/../"
 OUTPUT_DIRECTORY = BASE_DIRECTORY + "temp/"
 SYSTEM_DIRECTORY = BASE_DIRECTORY + "systems/"
 MODEL_DIRECTORY = BASE_DIRECTORY + "models/"
@@ -34,7 +35,7 @@ def get_config_str(configs : tuple):
 
 def analyzeIterTime():
     # --- Hardware Parameters ---
-    gpu = "h100_80g_nvl8" # "h100_80g_nvl8", "b100_192g", "a100_80g"
+    gpu = "b100_192g" # "h100_80g_nvl8", "b100_192g", "a100_80g"
     workloads = {
         "126M": "megatron-126M",
         "530M": "megatron-530M",
@@ -49,8 +50,8 @@ def analyzeIterTime():
         # "530B": "turing-530B",
         "1T": "megatron-1T",
     }
-    mems = ["HBM2E"]
-    total_length_mm = 96
+    mems = ["HBM3E"]
+    total_length_mm = 120
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
@@ -58,7 +59,7 @@ def analyzeIterTime():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
+    worktype = "inference"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
@@ -85,8 +86,8 @@ def analyzeIterTime():
 
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
-    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":None, "limit": (0,8)}
-    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.49,0.75), ncol=1)
+    y_ = {"label": "Norm. Iteration Time", "data": job_stats, "log":None, "limit": (0,4)}
+    plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(2,2), bbox_to_anchor=(0.40,0.75), ncol=1)
 
 def analyzeMemoryUsage():
     # --- Hardware Parameters ---
@@ -203,7 +204,7 @@ def analyzeGPUHour():
     plot_util.plotMultiColBarChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0.01,0.75), ncol=1)
 
 def analyzeArithmeticIntensity():
-    gpu = "h100_80g_nvl8"
+    gpu = "b100_192g"
     workloads = {
         "Meg\n126M": "megatron-126M",
         "Meg\n530M": "megatron-530M",
@@ -217,8 +218,8 @@ def analyzeArithmeticIntensity():
         # "GPT3\n13B": "gpt3-13B",
         "Meg\n1T": "megatron-1T",
     }
-    mems = ["HBM2E"]
-    total_length_mm = 96
+    mems = ["HBM3E"]
+    total_length_mm = 120
     per_pic_length_mm = 8
     per_pic_bws_GBps = [2048] # 2048, 337.5 = 4050 / 12 (4050 = total H100 bandwidth), 25, 50, 100, 200, 400, 800, 1600
     mem_add_lats_ns = [60] # 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
@@ -226,7 +227,7 @@ def analyzeArithmeticIntensity():
     
     # --- Workload Parameters ---
     datatypes = ["float16"]
-    worktype = "training"
+    worktype = "inference"
     max_batch_sizes = [2048] # [2**i for i in range(int(2048).bit_length())]
     seq_lens = [2048]
     max_num_procs = 4096
@@ -258,7 +259,8 @@ def analyzeArithmeticIntensity():
 
     pprint.pprint(job_stats)
     x_ = {"label": "Workloads", "data": workloads.keys(), "log":None, "limit": None}
-    y_ = {"label": "FLOPs/Byte", "data": job_stats, "log": None, "limit": (0, 1100)}
+    y_ = {"label": "FLOPs/Byte", "data": job_stats, "log": None, "limit":None}
+    # plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0.32,0), ncol=1)
     plot_util.plotMultiLineChart(x=x_, y=y_, fig_size=(3,2), bbox_to_anchor=(0,0.62), ncol=1)
     # plot_util.plotMultiScatterChart(x=x_, y=y_, fig_size=(3.6,3.27), bbox_to_anchor=(0,0.5))
     

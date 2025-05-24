@@ -70,6 +70,7 @@ class BaselineExecution(calculon.CommandLine):
     model.run_optim(syst)
     per_gpu_mem_cap_GB = config["system"]["mem1"]["GiB"]
     est_num_procs = int(np.ceil((model.get_mem_tier1_cap_req() + model.get_mem_tier2_cap_req()) / (1024**3) / per_gpu_mem_cap_GB))
+    # est_num_procs = config['max_num_procs']
     syst.set_mem2_bandwidth(0) 
     syst.set_mem2_capacity(0)
     config["system"]["mem2"]["GiB"] = 0
@@ -86,7 +87,7 @@ class BaselineExecution(calculon.CommandLine):
       print(f"{dots(6)} {color('Time')}: {stats['total_time_aggregate']}s")
       print(f"{dots(6)} {color(f'{num_procs} GPUs')} = {exe_json['tensor_par']}TP x {exe_json['pipeline_par']}PP x {exe_json['data_par']}DP")
       print(f"{dots(6)} {color('AI')}: {stats['arithmetic_intensity']['total']}, {color('Memory BW')}: {config['system']['mem1']['GBps']}GBps")
-      print(f"{dots(6)} {color('Mem Needed')}: {stats['proc_mem_tier1_cap_req']/(1024**3)}GB, {color('Memory Cap')}: {config['system']['mem1']['GiB']}GB\n")
+      # print(f"{dots(6)} {color('Mem Needed')}: {stats['proc_mem_tier1_cap_req']/(1024**3)}GB, {color('Memory Cap')}: {config['system']['mem1']['GiB']}GB\n")
         
       # write results to output file
       model_str = config["model"].split("/")[-1].split(".")[0]
