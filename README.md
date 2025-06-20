@@ -1,4 +1,12 @@
-The original Calculon DNN evaluation framework can be found in (https://github.com/calculon-ai/calculon). Our version of Calculon is built on top of the original Calculon, but it extends Calculon’s original capabilities by introducing two key features to support our FlexPAC experiments: (1) support for roofline-based performance evaluation using aggregate arithmetic intensities across all DNN layers, and (2) an optimization algorithm to determine the optimal allocation of photonic bandwidth between memory access and network communication in our proposed Silicon Photonic Accelerated Memory Pooling architecture.
+# Extended Calculon - SiPAM
+
+The original Calculon DNN evaluation framework can be found in (https://github.com/calculon-ai/calculon). It builds upon the original work by adding the following modifications:
+
+## ✨ Modifications
+
+ Our version of Calculon is built on top of the original Calculon, but it extends Calculon’s original capabilities by introducing two key features to support our FlexPAC experiments: (1) support for roofline-based performance evaluation using aggregate arithmetic intensities across all DNN layers, and (2) an optimization algorithm to determine the optimal allocation of photonic bandwidth between memory access and network communication in our proposed Silicon Photonic Accelerated Memory Pooling (SiPAM) architecture.
+
+## 📦 Original Calculon Description
 
 [![DOI](https://zenodo.org/badge/660734586.svg)](https://zenodo.org/badge/latestdoi/660734586)
 # Calculon - Co-design for large scale parallel applications
